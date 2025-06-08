@@ -1,35 +1,57 @@
-import { useState, createContext, useContext } from 'react'
-import { Layout, Button, Modal, Form, Input, ConfigProvider, theme, Select, Card, Divider } from 'antd'
-import { SettingOutlined } from '@ant-design/icons'
+import { useState, createContext, useContext, useCallback } from 'react'
+import { Layout, Button, Modal, Form, Input, ConfigProvider, theme, Select, Card, Divider, List, Popconfirm, message } from 'antd'
+import { SettingOutlined, PlusOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons'
 import ResourcePanel from './components/ResourcePanel'
 import EditorPanel from './components/EditorPanel'
 import InteractionPanel from './components/InteractionPanel'
 import { LLMConfig } from './services/llmService'
 import './App.css'
 
+interface ModelConfig extends LLMConfig {
+  name: string
+}
+
 const { Header, Content, Sider } = Layout
 const { Option } = Select
 
-// 预设的模型配置
-const MODEL_PRESETS = {
+// 默认的模型配置
+const DEFAULT_MODEL_PRESETS: Record<string, ModelConfig> = {
   'deepseek-chat': {
+    name: 'DeepSeek-Chat',
     base_url: 'https://api.deepseek.com/v1',
     api_key: 'sk-c1d34a4f21e3413487bb4b2806f6c4b8',
     llm_model_id: 'deepseek-chat',
     temperature: 0.6
   },
   'deepseek-reasoner': {
+    name: 'DeepSeek-Reasoner',
     base_url: 'https://api.deepseek.com/v1',
     api_key: 'sk-c1d34a4f21e3413487bb4b2806f6c4b8',
     llm_model_id: 'deepseek-reasoner',
     temperature: 0.6
   },
   'qwen3-235b-a22b': {
+    name: 'Qwen3-235B-A22B',
     base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
     api_key: 'sk-9f507c06d7534acf978cf30091bc5529',
     llm_model_id: 'qwen3-235b-a22b',
     temperature: 0.6
   }
+}
+
+// 从localStorage加载自定义模型配置
+const loadCustomModels = () => {
+  try {
+    const saved = localStorage.getItem('customModels')
+    return saved ? JSON.parse(saved) : {}
+  } catch {
+    return {}
+  }
+}
+
+// 保存自定义模型配置到localStorage
+const saveCustomModels = (customModels: any) => {
+  localStorage.setItem('customModels', JSON.stringify(customModels))
 }
 
 // 创建LLM配置上下文
@@ -47,13 +69,26 @@ export const useLLMConfig = () => {
 function App() {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false)
   const [form] = Form.useForm()
-  const [selectedModel, setSelectedModel] = useState<string>('deepseek-chat')
-  const [currentLLMConfig, setCurrentLLMConfig] = useState<LLMConfig>(MODEL_PRESETS['deepseek-chat'])
+  const [selectedModel, setSelectedModel] = useState<string>('deepseek-reasoner')
+  const [customModels, setCustomModels] = useState<Record<string, ModelConfig>>(() => loadCustomModels())
+  const [currentLLMConfig, setCurrentLLMConfig] = useState<LLMConfig>(() => {
+    const allModels = {...DEFAULT_MODEL_PRESETS, ...loadCustomModels()}
+    return allModels['deepseek-reasoner']
+  })
+  const [rightSiderWidth, setRightSiderWidth] = useState<number>(700)
+  const [isResizing, setIsResizing] = useState(false)
+  const [isAddModelModalOpen, setIsAddModelModalOpen] = useState(false)
+  const [addModelForm] = Form.useForm()
+  const [editingModelKey, setEditingModelKey] = useState<string | null>(null)
+
+  // 获取所有模型配置（默认+自定义）
+  const getAllModels = (): Record<string, ModelConfig> => ({...DEFAULT_MODEL_PRESETS, ...customModels})
 
   const showSettingsModal = () => {
     setIsSettingsModalOpen(true)
     // 初始化表单值
-    const currentConfig = MODEL_PRESETS[selectedModel as keyof typeof MODEL_PRESETS]
+    const allModels = getAllModels()
+    const currentConfig = allModels[selectedModel as keyof typeof allModels]
     form.setFieldsValue({
       selectedModel: selectedModel,
       ...currentConfig
@@ -81,8 +116,81 @@ function App() {
 
   const handleModelChange = (value: string) => {
     setSelectedModel(value)
-    const config = MODEL_PRESETS[value as keyof typeof MODEL_PRESETS]
+    const allModels = getAllModels()
+    const config = allModels[value as keyof typeof allModels]
     form.setFieldsValue(config)
+  }
+
+  // 处理右边栏宽度调整
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    setIsResizing(true)
+    
+    const startX = e.clientX
+    const startWidth = rightSiderWidth
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaX = startX - e.clientX
+      const newWidth = Math.max(300, Math.min(800, startWidth + deltaX))
+      setRightSiderWidth(newWidth)
+    }
+    
+    const handleMouseUp = () => {
+      setIsResizing(false)
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+    
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+  }, [rightSiderWidth])
+
+  // 添加自定义模型
+  const handleAddModel = () => {
+    setEditingModelKey(null)
+    addModelForm.resetFields()
+    setIsAddModelModalOpen(true)
+  }
+
+  // 编辑自定义模型
+  const handleEditModel = (key: string) => {
+    const model = customModels[key]
+    setEditingModelKey(key)
+    addModelForm.setFieldsValue(model)
+    setIsAddModelModalOpen(true)
+  }
+
+  // 删除自定义模型
+  const handleDeleteModel = (key: string) => {
+    const newCustomModels = {...customModels}
+    delete newCustomModels[key]
+    setCustomModels(newCustomModels)
+    saveCustomModels(newCustomModels)
+    
+    // 如果删除的是当前选中的模型，切换到默认模型
+    if (selectedModel === key) {
+      setSelectedModel('deepseek-reasoner')
+      setCurrentLLMConfig(DEFAULT_MODEL_PRESETS['deepseek-reasoner'])
+    }
+    
+    message.success('模型配置已删除')
+  }
+
+  // 保存自定义模型配置
+  const handleSaveCustomModel = () => {
+    addModelForm.validateFields().then((values) => {
+      const modelKey = values.llm_model_id
+      const newCustomModels = {
+        ...customModels,
+        [modelKey]: values
+      }
+      
+      setCustomModels(newCustomModels)
+      saveCustomModels(newCustomModels)
+      setIsAddModelModalOpen(false)
+      
+      message.success(editingModelKey ? '模型配置已更新' : '模型配置已添加')
+    })
   }
 
   return (
@@ -99,20 +207,21 @@ function App() {
           {/* 顶部 Header */}
           <Header style={{ 
             background: '#fff', 
-            padding: '0 24px', 
+            padding: '0 8px', 
+            height: '24px',
+            lineHeight: '24px',
+            minHeight: '24px',
             borderBottom: '1px solid #f0f0f0',
             display: 'flex',
-            justifyContent: 'space-between',
+            justifyContent: 'flex-end',
             alignItems: 'center'
           }}>
-            <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#1677ff' }}>
-              Life Agent Web
-            </div>
             <Button 
               type="text" 
               icon={<SettingOutlined />} 
               onClick={showSettingsModal}
-              style={{ fontSize: '16px' }}
+              style={{ fontSize: '11px', height: '20px', padding: '0 6px' }}
+              size="small"
             >
               设置
             </Button>
@@ -140,14 +249,31 @@ function App() {
             </Content>
 
             {/* 右栏 - 交互区 */}
-            <Sider 
-              width={350} 
-              style={{ 
-                background: '#fafafa'
-              }}
-            >
-              <InteractionPanel />
-            </Sider>
+            <div style={{ 
+              width: rightSiderWidth,
+              background: '#fafafa',
+              position: 'relative',
+              display: 'flex'
+            }}>
+              {/* 可拖拽的分割线 */}
+              <div
+                style={{
+                  width: '4px',
+                  background: isResizing ? '#1677ff' : 'transparent',
+                  cursor: 'col-resize',
+                  position: 'absolute',
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  zIndex: 10,
+                  borderLeft: '1px solid #f0f0f0'
+                }}
+                onMouseDown={handleMouseDown}
+              />
+              <div style={{ flex: 1, marginLeft: '4px' }}>
+                <InteractionPanel />
+              </div>
+            </div>
           </Layout>
 
           {/* 设置模态框 */}
@@ -158,22 +284,29 @@ function App() {
             onCancel={handleSettingsCancel}
             okText="确定"
             cancelText="取消"
-            width={600}
+            width={800}
           >
             <Form form={form} layout="vertical">
               <Card title="LLM 模型配置" size="small">
                 <Form.Item
-                  label="常用模型"
+                  label="选择模型"
                   name="selectedModel"
                   rules={[{ required: true, message: '请选择模型' }]}
                 >
                   <Select 
-                    placeholder="选择常用模型"
+                    placeholder="选择模型"
                     onChange={handleModelChange}
                   >
-                    <Option value="deepseek-chat">DeepSeek-Chat</Option>
-                    <Option value="deepseek-reasoner">DeepSeek-Reasoner</Option>
-                    <Option value="qwen3-235b-a22b">Qwen3-235B-A22B</Option>
+                    {Object.entries(getAllModels()).map(([key, model]) => (
+                      <Option key={key} value={key}>
+                        {model.name || key}
+                        {!DEFAULT_MODEL_PRESETS[key] && (
+                          <span style={{ color: '#1677ff', marginLeft: '8px' }}>
+                            (自定义)
+                          </span>
+                        )}
+                      </Option>
+                    ))}
                   </Select>
                 </Form.Item>
 
@@ -219,7 +352,131 @@ function App() {
                     step={0.1}
                   />
                 </Form.Item>
+
+                <Divider orientation="left" orientationMargin="0">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    自定义模型管理
+                    <Button 
+                      type="primary" 
+                      size="small" 
+                      icon={<PlusOutlined />}
+                      onClick={handleAddModel}
+                    >
+                      添加模型
+                    </Button>
+                  </div>
+                </Divider>
+
+                {Object.keys(customModels).length > 0 ? (
+                  <List
+                    size="small"
+                    dataSource={Object.entries(customModels)}
+                    renderItem={([key, model]) => (
+                      <List.Item
+                        actions={[
+                          <Button
+                            key="edit"
+                            type="link"
+                            size="small"
+                            icon={<EditOutlined />}
+                            onClick={() => handleEditModel(key)}
+                          >
+                            编辑
+                          </Button>,
+                          <Popconfirm
+                            key="delete"
+                            title="确定要删除这个模型配置吗？"
+                            onConfirm={() => handleDeleteModel(key)}
+                            okText="确定"
+                            cancelText="取消"
+                          >
+                            <Button
+                              type="link"
+                              size="small"
+                              danger
+                              icon={<DeleteOutlined />}
+                            >
+                              删除
+                            </Button>
+                          </Popconfirm>
+                        ]}
+                      >
+                        <List.Item.Meta
+                          title={model.name || key}
+                          description={`${model.base_url} - ${model.llm_model_id}`}
+                        />
+                      </List.Item>
+                    )}
+                  />
+                ) : (
+                  <div style={{ textAlign: 'center', color: '#999', padding: '20px' }}>
+                    暂无自定义模型配置
+                  </div>
+                )}
               </Card>
+            </Form>
+          </Modal>
+
+          {/* 添加/编辑模型模态框 */}
+          <Modal
+            title={editingModelKey ? '编辑模型配置' : '添加模型配置'}
+            open={isAddModelModalOpen}
+            onOk={handleSaveCustomModel}
+            onCancel={() => setIsAddModelModalOpen(false)}
+            okText="保存"
+            cancelText="取消"
+            width={600}
+          >
+            <Form form={addModelForm} layout="vertical">
+              <Form.Item
+                label="模型名称"
+                name="name"
+                rules={[{ required: true, message: '请输入模型名称' }]}
+              >
+                <Input placeholder="例如: 我的 GPT-4" />
+              </Form.Item>
+
+              <Form.Item
+                label="Base URL"
+                name="base_url"
+                rules={[{ required: true, message: '请输入 Base URL' }]}
+              >
+                <Input placeholder="例如: https://api.openai.com/v1" />
+              </Form.Item>
+
+              <Form.Item
+                label="API Key"
+                name="api_key"
+                rules={[{ required: true, message: '请输入 API Key' }]}
+              >
+                <Input.Password placeholder="请输入 API Key" />
+              </Form.Item>
+
+              <Form.Item
+                label="模型 ID"
+                name="llm_model_id"
+                rules={[{ required: true, message: '请输入模型 ID' }]}
+              >
+                <Input placeholder="例如: gpt-4" />
+              </Form.Item>
+
+              <Form.Item
+                label="Temperature"
+                name="temperature"
+                rules={[
+                  { required: true, message: '请输入 Temperature' },
+                  { pattern: /^(0(\.\d+)?|1(\.0+)?)$/, message: 'Temperature 必须在 0-1 之间' }
+                ]}
+                initialValue={0.6}
+              >
+                <Input 
+                  placeholder="0.0 - 1.0，例如: 0.6" 
+                  type="number"
+                  min={0}
+                  max={1}
+                  step={0.1}
+                />
+              </Form.Item>
             </Form>
           </Modal>
         </Layout>

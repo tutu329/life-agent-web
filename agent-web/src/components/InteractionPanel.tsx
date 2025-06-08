@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Input, List, Avatar, Typography, Divider, Alert, Spin, Button, message, Collapse } from 'antd'
-import { UserOutlined, RobotOutlined, SendOutlined, ReloadOutlined, CaretRightOutlined, ExperimentOutlined } from '@ant-design/icons'
+import { UserOutlined, RobotOutlined, SendOutlined, ReloadOutlined, CaretRightOutlined } from '@ant-design/icons'
 import { useLLMConfig } from '../App'
 import { LLMService, ChatMessage } from '../services/llmService'
 
@@ -215,21 +215,6 @@ const InteractionPanel: React.FC = () => {
     sendMessage(originalMessage, true)
   }
 
-  const addTestThinkingMessage = () => {
-    const llmService = llmServiceRef.current
-    const isThinkingModel = llmService?.isThinkingModel() || false
-    
-    const testMessage: Message = {
-      id: Date.now(),
-      content: '这是一个测试回复，展示thinking功能如何工作。',
-      thinking: isThinkingModel ? '我需要思考如何最好地回答这个问题。首先，我应该分析用户的需求，然后考虑可能的解决方案。让我逐步分析：\n\n1. 用户想要了解thinking功能\n2. 我应该提供一个清晰的示例\n3. 确保用户能够看到thinking框的展开和收起功能\n\n基于这些考虑，我会提供一个简洁而有用的回复。' : undefined,
-      isUser: false,
-      timestamp: new Date(),
-      hasThinking: isThinkingModel, // 标记测试消息应该显示thinking框
-    }
-    setMessages(prev => [...prev, testMessage])
-  }
-
   const renderThinkingBox = (thinking: string | undefined, isStreaming?: boolean, hasThinkingContent?: boolean) => {
     const llmService = llmServiceRef.current
     const isThinkingModel = llmService?.isThinkingModel() || false
@@ -386,7 +371,7 @@ const InteractionPanel: React.FC = () => {
       padding: '16px' 
     }}>
       {/* 标题 */}
-      <Title level={4} style={{ marginBottom: '16px', color: '#1677ff' }}>
+      <Title level={5} style={{ marginBottom: '16px', color: '#1677ff', fontSize: '12px' }}>
         智能交互
       </Title>
 
@@ -416,18 +401,6 @@ const InteractionPanel: React.FC = () => {
       </div>
 
       <Divider style={{ margin: '8px 0' }} />
-
-      {/* 测试按钮 */}
-      <div style={{ marginBottom: '8px' }}>
-        <Button 
-          icon={<ExperimentOutlined />}
-          onClick={addTestThinkingMessage}
-          size="small"
-          type="dashed"
-        >
-          测试Thinking功能
-        </Button>
-      </div>
 
       {/* 输入区域 */}
       <Search
