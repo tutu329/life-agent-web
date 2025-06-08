@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Input, List, Avatar, Typography, Divider, Card, Alert, Spin, Button, message } from 'antd'
-import { UserOutlined, RobotOutlined, SendOutlined, ThunderboltOutlined, ReloadOutlined } from '@ant-design/icons'
+import { Input, List, Avatar, Typography, Divider, Alert, Spin, Button, message, Collapse } from 'antd'
+import { UserOutlined, RobotOutlined, SendOutlined, ReloadOutlined, CaretRightOutlined, ExperimentOutlined } from '@ant-design/icons'
 import { useLLMConfig } from '../App'
 import { LLMService, ChatMessage } from '../services/llmService'
 
@@ -16,6 +16,7 @@ interface Message {
   isStreaming?: boolean
   hasError?: boolean
   canRetry?: boolean
+  hasThinking?: boolean // 用于标记这条消息是否应该显示thinking框
 }
 
 const InteractionPanel: React.FC = () => {
@@ -79,13 +80,17 @@ const InteractionPanel: React.FC = () => {
 
     // 创建助手消息（用于流式更新）
     const assistantMessageId = Date.now() + (isRetry ? 0 : 1)
+    const llmService = llmServiceRef.current
+    const isThinkingModel = llmService?.isThinkingModel() || false
+    
     const initialAssistantMessage: Message = {
       id: assistantMessageId,
       content: '',
-      thinking: '',
+      thinking: isThinkingModel ? '' : undefined, // thinking模型初始化为空字符串，等待真实内容
       isUser: false,
       timestamp: new Date(),
       isStreaming: true,
+      hasThinking: isThinkingModel, // 标记这条消息应该显示thinking框
     }
 
     setMessages(prev => [...prev, initialAssistantMessage])
@@ -106,41 +111,70 @@ const InteractionPanel: React.FC = () => {
         finalContent = response.content
         finalThinking = response.thinking || ''
 
+        // 可选：保留关键调试信息
+        // console.log('前端收到流式响应:', response)
+
         // 更新消息内容
-        setMessages(prev => prev.map(msg => 
-          msg.id === assistantMessageId 
-            ? { 
-                ...msg, 
-                content: response.content, 
-                thinking: response.thinking,
-                isStreaming: !response.done 
-              }
-            : msg
-        ))
+        setMessages(prev => {
+          const updatedMessages = prev.map(msg => 
+            msg.id === assistantMessageId 
+              ? { 
+                  ...msg, 
+                  content: response.content, 
+                  thinking: isThinkingModel ? response.thinking : undefined,
+                  isStreaming: !response.done,
+                  hasThinking: isThinkingModel // 确保hasThinking字段保持
+                }
+              : msg
+          )
+          // 可选：保留关键调试信息
+          // const updatedMsg = updatedMessages.find(m => m.id === assistantMessageId)
+          // console.log('消息更新后状态:', updatedMsg)
+          return updatedMessages
+        })
 
         if (response.done) {
+          // 流式响应完成时，确保最终的thinking内容被保存
+          setMessages(prev => prev.map(msg => 
+            msg.id === assistantMessageId 
+              ? { 
+                  ...msg, 
+                  content: finalContent, 
+                  thinking: isThinkingModel ? finalThinking : undefined,
+                  isStreaming: false,
+                  hasThinking: isThinkingModel // 确保hasThinking字段保持
+                }
+              : msg
+          ))
           break
         }
       }
 
       // 如果没有收到任何数据，尝试同步方式
       if (!hasReceivedData || (!finalContent && !finalThinking)) {
+        console.log('流式响应失败，尝试同步方式...')
         message.warning('流式响应失败，尝试同步方式...')
         const syncResponse = await llmService.chatSync(updatedHistory)
         finalContent = syncResponse.content
         finalThinking = syncResponse.thinking || ''
+
+        console.log('同步响应结果:', syncResponse) // 调试信息
+        console.log('同步thinking内容:', finalThinking) // 调试信息
 
         setMessages(prev => prev.map(msg => 
           msg.id === assistantMessageId 
             ? { 
                 ...msg, 
                 content: finalContent, 
-                thinking: finalThinking,
-                isStreaming: false 
+                thinking: isThinkingModel ? finalThinking : undefined,
+                isStreaming: false,
+                hasThinking: isThinkingModel // 确保hasThinking字段保持
               }
             : msg
         ))
       }
+
+      // 最终更新消息（这里已经在上面的同步响应处理中完成了）
 
       // 更新聊天历史
       if (!isRetry) {
@@ -161,7 +195,8 @@ const InteractionPanel: React.FC = () => {
               content: errorContent,
               isStreaming: false,
               hasError: true,
-              canRetry: true
+              canRetry: true,
+              hasThinking: isThinkingModel // 即使出错也保持thinking框显示状态
             }
           : msg
       ))
@@ -180,36 +215,97 @@ const InteractionPanel: React.FC = () => {
     sendMessage(originalMessage, true)
   }
 
-  const renderThinkingBox = (thinking: string) => {
-    if (!thinking) return null
+  const addTestThinkingMessage = () => {
+    const llmService = llmServiceRef.current
+    const isThinkingModel = llmService?.isThinkingModel() || false
+    
+    const testMessage: Message = {
+      id: Date.now(),
+      content: '这是一个测试回复，展示thinking功能如何工作。',
+      thinking: isThinkingModel ? '我需要思考如何最好地回答这个问题。首先，我应该分析用户的需求，然后考虑可能的解决方案。让我逐步分析：\n\n1. 用户想要了解thinking功能\n2. 我应该提供一个清晰的示例\n3. 确保用户能够看到thinking框的展开和收起功能\n\n基于这些考虑，我会提供一个简洁而有用的回复。' : undefined,
+      isUser: false,
+      timestamp: new Date(),
+      hasThinking: isThinkingModel, // 标记测试消息应该显示thinking框
+    }
+    setMessages(prev => [...prev, testMessage])
+  }
+
+  const renderThinkingBox = (thinking: string | undefined, isStreaming?: boolean, hasThinkingContent?: boolean) => {
+    const llmService = llmServiceRef.current
+    const isThinkingModel = llmService?.isThinkingModel() || false
+    
+    // 只有thinking模型才显示thinking框
+    if (!isThinkingModel) return null
+    
+    // 如果不需要显示thinking框，直接返回null
+    if (!hasThinkingContent) return null
+    
+    // 决定显示的内容
+    let displayContent = ''
+    
+    if (thinking && thinking.trim()) {
+      // 有实际的thinking内容
+      displayContent = thinking
+    } else if (isStreaming) {
+      // 正在流式响应中
+      displayContent = '正在思考中...'
+    } else if (hasThinkingContent) {
+      // 流式响应完成但没有thinking内容
+      displayContent = '思考过程已完成'
+    } else {
+      // 不应该显示thinking框
+      displayContent = ''
+    }
+
+    const thinkingItems = [
+      {
+        key: '1',
+        label: (
+          <span style={{ fontSize: '12px', color: '#6a737d' }}>
+            思考过程
+          </span>
+        ),
+        children: (
+          <Paragraph 
+            style={{ 
+              margin: 0, 
+              fontSize: '12px', 
+              color: '#586069',
+              whiteSpace: 'pre-wrap',
+              maxHeight: '200px',
+              overflow: 'auto',
+              backgroundColor: '#f8f9fa',
+              padding: '8px',
+              borderRadius: '4px',
+              border: '1px solid #e9ecef'
+            }}
+          >
+            {displayContent}
+          </Paragraph>
+        ),
+      },
+    ]
 
     return (
-      <Card 
-        size="small" 
-        style={{ 
-          marginTop: '8px', 
-          backgroundColor: '#f6f8fa',
-          border: '1px solid #e1e4e8'
-        }}
-        title={
-          <span style={{ fontSize: '12px', color: '#6a737d' }}>
-            <ThunderboltOutlined /> 思考过程
-          </span>
-        }
-      >
-        <Paragraph 
-          style={{ 
-            margin: 0, 
-            fontSize: '12px', 
-            color: '#586069',
-            whiteSpace: 'pre-wrap',
-            maxHeight: '200px',
-            overflow: 'auto'
+      <div style={{ marginTop: '8px' }}>
+        <Collapse 
+          items={thinkingItems}
+          size="small"
+          ghost
+          expandIcon={({ isActive }) => (
+            <CaretRightOutlined 
+              rotate={isActive ? 90 : 0} 
+              style={{ fontSize: '10px', color: '#6a737d' }}
+            />
+          )}
+          style={{
+            backgroundColor: '#f6f8fa',
+            border: '1px solid #e1e4e8',
+            borderRadius: '6px',
           }}
-        >
-          {thinking}
-        </Paragraph>
-      </Card>
+          className="thinking-collapse"
+        />
+      </div>
     )
   }
 
@@ -255,10 +351,10 @@ const InteractionPanel: React.FC = () => {
           description={
             <div>
               {/* Thinking 部分 */}
-              {message.thinking && renderThinkingBox(message.thinking)}
+              {renderThinkingBox(message.thinking, message.isStreaming, message.hasThinking)}
               
               {/* 主要内容 */}
-              <div style={{ marginTop: message.thinking ? '12px' : '0' }}>
+              <div style={{ marginTop: '0' }}>
                 <Paragraph 
                   style={{ 
                     margin: 0, 
@@ -320,6 +416,18 @@ const InteractionPanel: React.FC = () => {
       </div>
 
       <Divider style={{ margin: '8px 0' }} />
+
+      {/* 测试按钮 */}
+      <div style={{ marginBottom: '8px' }}>
+        <Button 
+          icon={<ExperimentOutlined />}
+          onClick={addTestThinkingMessage}
+          size="small"
+          type="dashed"
+        >
+          测试Thinking功能
+        </Button>
+      </div>
 
       {/* 输入区域 */}
       <Search

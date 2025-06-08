@@ -12,10 +12,16 @@ const { Option } = Select
 
 // 预设的模型配置
 const MODEL_PRESETS = {
-  'deepseek-R1': {
+  'deepseek-chat': {
     base_url: 'https://api.deepseek.com/v1',
     api_key: 'sk-c1d34a4f21e3413487bb4b2806f6c4b8',
     llm_model_id: 'deepseek-chat',
+    temperature: 0.6
+  },
+  'deepseek-reasoner': {
+    base_url: 'https://api.deepseek.com/v1',
+    api_key: 'sk-c1d34a4f21e3413487bb4b2806f6c4b8',
+    llm_model_id: 'deepseek-reasoner',
     temperature: 0.6
   },
   'qwen3-235b-a22b': {
@@ -41,8 +47,8 @@ export const useLLMConfig = () => {
 function App() {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false)
   const [form] = Form.useForm()
-  const [selectedModel, setSelectedModel] = useState<string>('deepseek-R1')
-  const [currentLLMConfig, setCurrentLLMConfig] = useState<LLMConfig>(MODEL_PRESETS['deepseek-R1'])
+  const [selectedModel, setSelectedModel] = useState<string>('deepseek-chat')
+  const [currentLLMConfig, setCurrentLLMConfig] = useState<LLMConfig>(MODEL_PRESETS['deepseek-chat'])
 
   const showSettingsModal = () => {
     setIsSettingsModalOpen(true)
@@ -165,7 +171,8 @@ function App() {
                     placeholder="选择常用模型"
                     onChange={handleModelChange}
                   >
-                    <Option value="deepseek-R1">DeepSeek-R1</Option>
+                    <Option value="deepseek-chat">DeepSeek-Chat</Option>
+                    <Option value="deepseek-reasoner">DeepSeek-Reasoner</Option>
                     <Option value="qwen3-235b-a22b">Qwen3-235B-A22B</Option>
                   </Select>
                 </Form.Item>

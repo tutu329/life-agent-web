@@ -82,9 +82,13 @@ export class LLMService {
                 const delta = parsed.choices?.[0]?.delta
 
                 if (delta) {
-                  // 处理DeepSeek的thinking内容
-                  if (delta.reasoning) {
-                    currentThinking += delta.reasoning
+                  // console.log('Delta received:', delta) // 调试信息
+                  
+                  // 处理DeepSeek的thinking内容 (reasoning 或 reasoning_content)
+                  if (delta.reasoning || delta.reasoning_content) {
+                    const thinkingDelta = delta.reasoning || delta.reasoning_content
+                    currentThinking += thinkingDelta
+                    // console.log('DeepSeek thinking updated:', currentThinking) // 调试信息
                     yield { 
                       content: currentContent, 
                       thinking: currentThinking, 
@@ -94,7 +98,25 @@ export class LLMService {
 
                   // 处理普通内容
                   if (delta.content) {
-                    currentContent += delta.content
+                    // 检查content中是否包含thinking标记（适用于更多模型）
+                    const thinkingMatch = delta.content.match(/<thinking>(.*?)<\/thinking>/gs)
+                    if (thinkingMatch) {
+                      // 提取所有thinking内容
+                      for (const match of thinkingMatch) {
+                        const thinkingText = match.replace(/<\/?thinking>/g, '')
+                        currentThinking += thinkingText
+                      }
+                      // 从content中移除thinking部分
+                      const contentWithoutThinking = delta.content.replace(/<thinking>.*?<\/thinking>/gs, '').trim()
+                      if (contentWithoutThinking) {
+                        currentContent += contentWithoutThinking
+                      }
+                      // console.log('Thinking extracted from content:', currentThinking) // 调试信息
+                    } else {
+                      // 普通内容，直接添加
+                      currentContent += delta.content
+                    }
+                    
                     yield { 
                       content: currentContent, 
                       thinking: currentThinking, 
@@ -102,22 +124,14 @@ export class LLMService {
                     }
                   }
 
-                  // 对于Qwen等其他模型，可能thinking信息在content中
-                  if (this.isQwenModel() && delta.content) {
-                    // 尝试检测thinking模式的特殊标记
-                    const thinkingMatch = delta.content.match(/<thinking>(.*?)<\/thinking>/s)
-                    if (thinkingMatch) {
-                      currentThinking += thinkingMatch[1]
-                      // 从content中移除thinking部分
-                      const contentWithoutThinking = delta.content.replace(/<thinking>.*?<\/thinking>/s, '')
-                      if (contentWithoutThinking.trim()) {
-                        currentContent += contentWithoutThinking
-                      }
-                      yield { 
-                        content: currentContent, 
-                        thinking: currentThinking, 
-                        done: false 
-                      }
+                  // 处理其他可能的thinking字段
+                  if (delta.thinking) {
+                    currentThinking += delta.thinking
+                    // console.log('Other thinking format detected:', currentThinking) // 调试信息
+                    yield { 
+                      content: currentContent, 
+                      thinking: currentThinking, 
+                      done: false 
                     }
                   }
                 }
@@ -138,7 +152,7 @@ export class LLMService {
 
   // 检查是否是thinking模型
   isThinkingModel(): boolean {
-    const thinkingModels = ['deepseek-chat', 'qwen3-235b-a22b']
+    const thinkingModels = ['deepseek-reasoner', 'qwen3-235b-a22b']
     return thinkingModels.includes(this.config.llm_model_id)
   }
 
@@ -166,12 +180,27 @@ export class LLMService {
         }
       )
 
-      const content = response.data.choices?.[0]?.message?.content || ''
+      const fullContent = response.data.choices?.[0]?.message?.content || ''
       const reasoning = response.data.choices?.[0]?.message?.reasoning || ''
+      
+      console.log('Sync response:', response.data.choices?.[0]?.message) // 调试信息
+      
+      // 从content中提取thinking内容
+      let thinking = reasoning
+      let content = fullContent
+      
+      if (fullContent && !reasoning) {
+        const thinkingMatch = fullContent.match(/<thinking>(.*?)<\/thinking>/gs)
+        if (thinkingMatch) {
+          thinking = thinkingMatch.map((match: string) => match.replace(/<\/?thinking>/g, '')).join('\n\n')
+          content = fullContent.replace(/<thinking>.*?<\/thinking>/gs, '').trim()
+          console.log('Thinking extracted from sync content:', thinking) // 调试信息
+        }
+      }
 
       return {
         content,
-        thinking: reasoning
+        thinking
       }
     } catch (error) {
       console.error('Sync chat error:', error)

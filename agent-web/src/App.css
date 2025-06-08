@@ -16,4 +16,22 @@
 .ant-layout,
 .ant-layout-content {
   height: 100%;
+}
+
+/* Thinking框样式 */
+.thinking-collapse .ant-collapse-header {
+  padding: 8px 12px !important;
+  background-color: #f6f8fa !important;
+}
+
+.thinking-collapse .ant-collapse-header:hover {
+  background-color: #e1e7ec !important;
+}
+
+.thinking-collapse .ant-collapse-content {
+  background-color: transparent !important;
+}
+
+.thinking-collapse .ant-collapse-content-box {
+  padding: 8px 12px !important;
 } 

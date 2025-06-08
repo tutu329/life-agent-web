@@ -4,7 +4,7 @@
 
 ### 1. 真实LLM集成
 - 支持与配置的LLM模型进行真实对话
-- 默认支持 DeepSeek-R1 和 Qwen3-235B-A22B 模型
+- 默认支持 DeepSeek-Chat、DeepSeek-Reasoner 和 Qwen3-235B-A22B 模型
 - 根据设置中配置的模型自动切换
 
 ### 2. 流式响应
@@ -13,9 +13,10 @@
 - 自动滚动到最新消息
 
 ### 3. Thinking模型支持
-- 对于thinking模型（如DeepSeek-R1和Qwen3-235B-A22B），会专门显示思考过程
-- 思考过程显示在独立的灰色框中，带有闪电图标
-- 思考内容可以折叠显示，不影响主要对话内容
+- 对于thinking模型（如DeepSeek-Reasoner和Qwen3-235B-A22B），会专门显示思考过程
+- 思考过程显示在独立的灰色框中，可以折叠显示
+- 思考内容完全来源于模型的真实思考过程，不影响主要对话内容
+- 非thinking模型（如DeepSeek-Chat）不会显示思考框
 
 ### 4. 聊天记忆
 - 保持完整的对话历史
@@ -73,8 +74,9 @@
 - 处理 `delta.content` 和 `delta.reasoning` 字段
 
 ### Thinking模型特殊处理
-- DeepSeek-R1: 使用 `delta.reasoning` 字段获取思考内容
+- DeepSeek-Reasoner: 使用 `delta.reasoning` 字段获取思考内容
 - Qwen3-235B-A22B: 从 `delta.content` 中解析 `<thinking>` 标签
+- DeepSeek-Chat: 普通对话模型，不显示思考过程
 
 ## 故障排除
 
