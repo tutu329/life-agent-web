@@ -1,0 +1,19 @@
+/* App 组件样式 */
+.ant-layout {
+  background: #fff;
+}
+
+.ant-layout-header {
+  height: 48px;
+  line-height: 48px;
+}
+
+.ant-layout-sider {
+  background: #fafafa !important;
+}
+
+/* 确保布局占满整个屏幕 */
+.ant-layout,
+.ant-layout-content {
+  height: 100%;
+} 
