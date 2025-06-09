@@ -1,6 +1,6 @@
 import { useState, createContext, useContext, useCallback } from 'react'
 import { Layout, Button, Modal, Form, Input, ConfigProvider, theme, Select, Card, Divider, List, Popconfirm, message } from 'antd'
-import { SettingOutlined, PlusOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons'
+import { SettingOutlined, PlusOutlined, DeleteOutlined, EditOutlined, SaveOutlined, FolderOpenOutlined, PrinterOutlined, UndoOutlined, RedoOutlined, BoldOutlined, ItalicOutlined, UnderlineOutlined } from '@ant-design/icons'
 import ResourcePanel from './components/ResourcePanel'
 import EditorPanel from './components/EditorPanel'
 import InteractionPanel from './components/InteractionPanel'
@@ -212,19 +212,37 @@ function App() {
             lineHeight: '24px',
             minHeight: '24px',
             borderBottom: '1px solid #f0f0f0',
-            display: 'flex',
-            justifyContent: 'flex-end',
-            alignItems: 'center'
+            position: 'relative'
           }}>
-            <Button 
-              type="text" 
-              icon={<SettingOutlined />} 
-              onClick={showSettingsModal}
-              style={{ fontSize: '11px', height: '20px', padding: '0 6px' }}
-              size="small"
-            >
-              设置
-            </Button>
+            {/* 左侧工具栏按钮 - 已隐藏 */}
+            <div style={{ display: 'none' }}>
+              <Button type="text" size="small" icon={<SaveOutlined />} title="保存" style={{ fontSize: '11px', height: '20px', padding: '0 4px' }} />
+              <Button type="text" size="small" icon={<FolderOpenOutlined />} title="打开" style={{ fontSize: '11px', height: '20px', padding: '0 4px' }} />
+              <Button type="text" size="small" icon={<PrinterOutlined />} title="打印" style={{ fontSize: '11px', height: '20px', padding: '0 4px' }} />
+              <Button type="text" size="small" icon={<UndoOutlined />} title="撤销" style={{ fontSize: '11px', height: '20px', padding: '0 4px' }} />
+              <Button type="text" size="small" icon={<RedoOutlined />} title="重做" style={{ fontSize: '11px', height: '20px', padding: '0 4px' }} />
+              <Button type="text" size="small" icon={<BoldOutlined />} title="粗体" style={{ fontSize: '11px', height: '20px', padding: '0 4px' }} />
+              <Button type="text" size="small" icon={<ItalicOutlined />} title="斜体" style={{ fontSize: '11px', height: '20px', padding: '0 4px' }} />
+              <Button type="text" size="small" icon={<UnderlineOutlined />} title="下划线" style={{ fontSize: '11px', height: '20px', padding: '0 4px' }} />
+            </div>
+            
+            {/* 设置按钮 - 绝对定位在右边 */}
+            <div style={{ 
+              position: 'absolute',
+              right: '8px',
+              top: '50%',
+              transform: 'translateY(-50%)'
+            }}>
+              <Button 
+                type="text" 
+                icon={<SettingOutlined />} 
+                onClick={showSettingsModal}
+                style={{ fontSize: '11px', height: '20px', padding: '0 6px' }}
+                size="small"
+              >
+                设置
+              </Button>
+            </div>
           </Header>
 
           {/* 主体部分 - 三栏布局 */}

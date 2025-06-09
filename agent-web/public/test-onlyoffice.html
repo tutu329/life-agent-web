@@ -8,7 +8,7 @@
     <h1>OnlyOffice 连接测试</h1>
     <div id="placeholder" style="height: 600px; width: 100%;"></div>
     
-    <script type="text/javascript" src="http://localhost:8080/web-apps/apps/api/documents/api.js"></script>
+    <script type="text/javascript" src="http://localhost:5102/web-apps/apps/api/documents/api.js"></script>
     <script type="text/javascript">
         window.docEditor = new DocsAPI.DocEditor("placeholder", {
             width: "100%",
@@ -19,7 +19,7 @@
                 fileType: "docx",
                 key: "test_document_" + Date.now(),
                 title: "测试文档.docx",
-                url: "http://192.168.77.63:5173/empty.docx",
+                url: "http://localhost:5101/empty.docx",
                 permissions: {
                     edit: true,
                     print: true,

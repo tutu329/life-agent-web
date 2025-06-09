@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
-import { Tabs, Button, Modal, Form, Input, Space, Tooltip } from 'antd'
-import { BarChartOutlined, FileTextOutlined, SettingOutlined, SaveOutlined, FileOutlined, PrinterOutlined, UndoOutlined, RedoOutlined, BoldOutlined, ItalicOutlined, UnderlineOutlined, AlignLeftOutlined, AlignCenterOutlined, AlignRightOutlined } from '@ant-design/icons'
+import { Tabs, Button, Modal, Form, Input, Space } from 'antd'
+import { BarChartOutlined, FileTextOutlined, SettingOutlined, SaveOutlined, FolderOpenOutlined, PrinterOutlined, UndoOutlined, RedoOutlined, BoldOutlined, ItalicOutlined, UnderlineOutlined } from '@ant-design/icons'
 import { DocumentEditor } from '@onlyoffice/document-editor-react'
 
 const EditorPanel: React.FC = () => {
@@ -74,48 +74,22 @@ const EditorPanel: React.FC = () => {
             borderBottom: '1px solid #f0f0f0',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
+            justifyContent: 'flex-end',
             padding: '0 12px'
           }}>
-            {/* 左侧常用工具按钮 */}
-            <Space size="small">
-              <Tooltip title="保存">
-                <Button type="text" size="small" icon={<SaveOutlined />} />
-              </Tooltip>
-              <Tooltip title="打开">
-                <Button type="text" size="small" icon={<FileOutlined />} />
-              </Tooltip>
-              <Tooltip title="打印">
-                <Button type="text" size="small" icon={<PrinterOutlined />} />
-              </Tooltip>
-              <div style={{ width: '1px', height: '16px', background: '#d9d9d9', margin: '0 4px' }} />
-              <Tooltip title="撤销">
-                <Button type="text" size="small" icon={<UndoOutlined />} />
-              </Tooltip>
-              <Tooltip title="重做">
-                <Button type="text" size="small" icon={<RedoOutlined />} />
-              </Tooltip>
-              <div style={{ width: '1px', height: '16px', background: '#d9d9d9', margin: '0 4px' }} />
-              <Tooltip title="加粗">
-                <Button type="text" size="small" icon={<BoldOutlined />} />
-              </Tooltip>
-              <Tooltip title="斜体">
-                <Button type="text" size="small" icon={<ItalicOutlined />} />
-              </Tooltip>
-              <Tooltip title="下划线">
-                <Button type="text" size="small" icon={<UnderlineOutlined />} />
-              </Tooltip>
-              <div style={{ width: '1px', height: '16px', background: '#d9d9d9', margin: '0 4px' }} />
-              <Tooltip title="左对齐">
-                <Button type="text" size="small" icon={<AlignLeftOutlined />} />
-              </Tooltip>
-              <Tooltip title="居中">
-                <Button type="text" size="small" icon={<AlignCenterOutlined />} />
-              </Tooltip>
-              <Tooltip title="右对齐">
-                <Button type="text" size="small" icon={<AlignRightOutlined />} />
-              </Tooltip>
-            </Space>
+            {/* 左侧工具按钮 - 这些按钮将被隐藏 */}
+            <div style={{ display: 'none' }}>
+              <Space size="small">
+                <Button type="text" size="small" icon={<SaveOutlined />} title="保存" />
+                <Button type="text" size="small" icon={<FolderOpenOutlined />} title="打开" />
+                <Button type="text" size="small" icon={<PrinterOutlined />} title="打印" />
+                <Button type="text" size="small" icon={<UndoOutlined />} title="撤销" />
+                <Button type="text" size="small" icon={<RedoOutlined />} title="重做" />
+                <Button type="text" size="small" icon={<BoldOutlined />} title="粗体" />
+                <Button type="text" size="small" icon={<ItalicOutlined />} title="斜体" />
+                <Button type="text" size="small" icon={<UnderlineOutlined />} title="下划线" />
+              </Space>
+            </div>
             
             {/* 右侧设置按钮 */}
             <Button 
@@ -135,6 +109,25 @@ const EditorPanel: React.FC = () => {
             minHeight: '500px',
             position: 'relative'
           }}>
+            <style>
+              {`
+                /* 隐藏OnlyOffice工具栏中的特定按钮 */
+                .asc-window iframe {
+                  /* 尝试隐藏工具栏按钮 */
+                }
+                #onlyoffice-container .toolbar-btn-save,
+                #onlyoffice-container .toolbar-btn-open,
+                #onlyoffice-container .toolbar-btn-print,
+                #onlyoffice-container .toolbar-btn-undo,
+                #onlyoffice-container .toolbar-btn-redo,
+                #onlyoffice-container .btn-toolbar,
+                #onlyoffice-container [title="保存"],
+                #onlyoffice-container [title="打开"],
+                #onlyoffice-container [title="打印"] {
+                  display: none !important;
+                }
+              `}
+            </style>
             {onlyOfficeError ? (
               <div style={{ 
                 height: '100%',
@@ -162,13 +155,13 @@ const EditorPanel: React.FC = () => {
                     </Button>
                     <Button 
                       style={{ marginLeft: '8px' }}
-                      onClick={() => window.open('http://localhost:5173/test-onlyoffice.html', '_blank')}
+                      onClick={() => window.open('/test-onlyoffice.html', '_blank')}
                     >
                       测试页面
                     </Button>
                   </div>
                   <p style={{ fontSize: '12px', marginTop: '16px', color: '#666' }}>
-                    请确保OnlyOffice服务器运行在 http://localhost:8080
+                    请确保OnlyOffice服务器运行在 http://localhost:5102
                   </p>
                 </div>
               </div>
@@ -188,7 +181,7 @@ const EditorPanel: React.FC = () => {
               >
                 <DocumentEditor
                   id="onlyOfficeEditor"
-                  documentServerUrl="http://localhost:8080/"
+                  documentServerUrl="http://powerai.cc:5102/"
                   config={{
                     width: '100%',
                     height: '100%',
@@ -198,7 +191,7 @@ const EditorPanel: React.FC = () => {
                       fileType: 'docx',
                       key: 'blank_document_' + Date.now(),
                       title: '新建文档.docx',
-                      url: 'http://192.168.77.63:5173/empty.docx',
+                      url: 'http://powerai.cc:5101/empty.docx',
                       permissions: {
                         edit: true,
                         print: true,
@@ -217,8 +210,9 @@ const EditorPanel: React.FC = () => {
                       },
                       customization: {
                         autosave: true,
-                        compactToolbar: false,
-                        hideRightMenu: false
+                        compactToolbar: true,
+                        hideRightMenu: false,
+                        toolbarNoTabs: true
                       }
                     },
                     events: {
@@ -256,7 +250,7 @@ const EditorPanel: React.FC = () => {
   return (
     <div style={{ height: '100%' }}>
       <Tabs
-        defaultActiveKey="1"
+        defaultActiveKey="2"
         items={items}
         style={{ padding: '0 16px', height: '100%' }}
         tabBarStyle={{ marginBottom: 0 }}

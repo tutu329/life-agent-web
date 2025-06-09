@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>简单OnlyOffice测试</title>
+    <meta charset="UTF-8">
+    <style>
+        body { margin: 20px; font-family: Arial, sans-serif; }
+        #status { padding: 10px; margin: 10px 0; background: #f0f8ff; border-radius: 4px; }
+        #placeholder { border: 2px dashed #ddd; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <h1>🧪 简单OnlyOffice测试</h1>
+    <div id="status">🔄 正在加载OnlyOffice API...</div>
+    <div id="placeholder" style="height: 600px; width: 100%;"></div>
+    
+    <script>
+        console.log('🚀 开始加载OnlyOffice测试页面');
+        
+        // 动态加载OnlyOffice API
+        const script = document.createElement('script');
+        script.src = 'http://powerai.cc:5102/web-apps/apps/api/documents/api.js';
+        script.onload = function() {
+            console.log('✅ OnlyOffice API 脚本加载成功');
+            initEditor();
+        };
+        script.onerror = function() {
+            console.error('❌ OnlyOffice API 脚本加载失败');
+            document.getElementById('status').innerHTML = '❌ OnlyOffice API 脚本加载失败';
+        };
+        document.head.appendChild(script);
+        
+        function initEditor() {
+            try {
+                console.log('📝 初始化OnlyOffice编辑器...');
+                document.getElementById('status').innerHTML = '📝 正在初始化编辑器...';
+                
+                window.docEditor = new DocsAPI.DocEditor("placeholder", {
+                    width: "100%",
+                    height: "600px",
+                    type: "desktop",
+                    documentType: "word",
+                    document: {
+                        fileType: "docx",
+                        key: "simple_test_" + Date.now(),
+                        title: "简单测试文档.docx",
+                        url: "http://powerai.cc:5101/empty.docx",
+                        permissions: {
+                            edit: true,
+                            print: true,
+                            download: true
+                        }
+                    },
+                    editorConfig: {
+                        mode: "edit",
+                        lang: "zh",
+                        user: {
+                            id: "test_user",
+                            name: "测试用户"
+                        }
+                    },
+                    events: {
+                        onAppReady: function() {
+                            console.log("✅ OnlyOffice应用准备就绪！");
+                            document.getElementById('status').innerHTML = '✅ OnlyOffice编辑器加载成功！';
+                        },
+                        onDocumentReady: function() {
+                            console.log("📄 文档加载完成");
+                        },
+                        onInfo: function(event) {
+                            console.log("ℹ️ OnlyOffice信息:", event);
+                        },
+                        onWarning: function(event) {
+                            console.warn("⚠️ OnlyOffice警告:", event);
+                        },
+                        onError: function(event) {
+                            console.error("❌ OnlyOffice错误:", event);
+                            document.getElementById('status').innerHTML = '❌ OnlyOffice错误: ' + JSON.stringify(event);
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('❌ 初始化编辑器时出错:', error);
+                document.getElementById('status').innerHTML = '❌ 初始化编辑器失败: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html> 

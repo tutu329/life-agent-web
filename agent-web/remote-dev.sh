@@ -17,6 +17,16 @@ echo "⚡ 使用热重载，代码更改会自动生效"
 echo "🛑 按 Ctrl+C 停止服务器"
 echo ""
 
+# 先同步代码到远程服务器
+echo "🔄 同步代码到远程服务器..."
+if [ -f "./sync-to-remote.sh" ]; then
+  ./sync-to-remote.sh
+  echo ""
+else
+  echo "⚠️ 警告: sync-to-remote.sh 文件未找到，跳过代码同步"
+  echo ""
+fi
+
 # 连接到远程服务器并启动开发环境
 ssh -p $REMOTE_PORT $REMOTE_USER@$REMOTE_HOST << 'EOF'
 # 加载nvm并使用Node.js 18
