@@ -1,5 +1,111 @@
 ### **开发计划：多智能体系统前端页面**
 
+#### **✅ OnlyOffice文档服务器已部署 (本地版本)**
+
+OnlyOffice Document Server 已迁移到本地版本（非Docker）：
+
+- **服务地址**: http://localhost:8080
+- **状态**: 运行中
+- **服务类型**: 本地 Node.js 服务
+- **启动方式**: 系统服务 (LaunchAgent)
+
+##### **✅ 问题解决方案**
+
+**问题**: OnlyOffice加载本地文档时出现"下载失败"错误
+
+**解决方案**: 使用本地空白文档
+
+- **测试页面**: http://localhost:5173/test-onlyoffice.html ✅ 正常工作
+- **主应用**: http://localhost:5173 → "报告编制"标签 ✅ 正常工作
+- **文档源**: 本地空白文档 (public/empty.docx)
+
+##### **使用方法**
+1. 启动前端应用: `npm run dev`
+2. 访问: http://localhost:5173
+3. 点击"报告编制"标签页
+4. 直接开始编辑文档
+
+##### **服务管理命令 (本地版本)**
+```bash
+# 查看完整状态
+./check-onlyoffice-status-native.sh
+
+# 查看服务进程
+pgrep -f "node.*server.js"
+
+# 查看日志
+tail -f ~/Library/Logs/onlyoffice-documentserver.log
+
+# 手动停止服务
+~/onlyoffice-documentserver/stop.sh
+
+# 手动启动服务
+~/onlyoffice-documentserver/start.sh
+
+# 重启系统服务
+launchctl unload ~/Library/LaunchAgents/com.onlyoffice.documentserver.plist
+launchctl load ~/Library/LaunchAgents/com.onlyoffice.documentserver.plist
+
+# 查看服务状态
+~/onlyoffice-documentserver/status.sh
+
+# 从Docker迁移到本地版本（一键迁移）
+./migrate-to-native.sh
+```
+
+##### **空白文档配置 ✅**
+现在OnlyOffice编辑器默认打开本地空白文档：
+- **文档位置**: `public/empty.docx`
+- **文档内容**: 包含一行默认提示文字，可直接开始编辑
+- **网络配置**: Vite配置为监听所有网络接口 (0.0.0.0:5173)
+- **IP地址访问**: 使用宿主机IP地址让OnlyOffice容器能访问文档
+- **自动保存**: 编辑内容会自动保存
+
+##### **管理脚本**
+- **完整测试**: `./test-local-document.sh` - 测试所有组件状态
+- **更新IP地址**: `./update-host-ip.sh` - 当IP地址变化时更新配置
+- **重新生成空白文档**: `python3 create-empty-docx.py`
+
+##### **远程工具配置**
+在"报告编制"页面的设置中，可以配置：
+- **端口**: 5122 (默认)
+- **工具描述**: 用于Agent调用OnlyOffice工具的描述
+
+#### **OnlyOffice文档服务器设置**
+
+OnlyOffice需要文档服务器来处理文档编辑功能。目前已采用本地版本：
+
+##### **✅ 当前方案：本地 Node.js 版本（推荐）**
+- **优势**: 无需Docker、启动快速、资源占用低
+- **安装**: 运行 `./install-onlyoffice-native.sh`
+- **迁移**: 从Docker版本迁移：`./migrate-to-native.sh`
+- **管理**: 使用系统服务，开机自启
+- **访问**: http://localhost:8080
+
+##### **备选方案1：Docker版本（已弃用）**
+```bash
+# 注意：已迁移到本地版本，不再推荐使用
+docker pull onlyoffice/documentserver
+docker run -i -t -d -p 8080:80 --name documentserver onlyoffice/documentserver
+```
+
+##### **备选方案2：云服务**
+- 使用OnlyOffice云服务
+- 或部署到自己的服务器
+
+##### **🔄 从Docker迁移到本地版本**
+如果你之前使用的是Docker版本，可以一键迁移：
+```bash
+./migrate-to-native.sh
+```
+
+**迁移优势**：
+- ❌ 不再依赖Docker Desktop
+- ✅ 更快的启动速度（秒级启动）
+- ✅ 更低的内存占用
+- ✅ 开机自动启动
+- ✅ 更简单的管理和调试
+
 #### **第一步：技术选型与环境搭建**
 
 为了快速开发一个现代化、响应式且易于维护的界面，我建议采用以下主流技术栈：

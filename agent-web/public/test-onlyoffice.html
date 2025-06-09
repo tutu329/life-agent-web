@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OnlyOffice 测试页面</title>
+    <meta charset="UTF-8">
+</head>
+<body>
+    <h1>OnlyOffice 连接测试</h1>
+    <div id="placeholder" style="height: 600px; width: 100%;"></div>
+    
+    <script type="text/javascript" src="http://localhost:8080/web-apps/apps/api/documents/api.js"></script>
+    <script type="text/javascript">
+        window.docEditor = new DocsAPI.DocEditor("placeholder", {
+            width: "100%",
+            height: "600px",
+            type: "desktop",
+            documentType: "word",
+            document: {
+                fileType: "docx",
+                key: "test_document_" + Date.now(),
+                title: "测试文档.docx",
+                url: "http://192.168.77.63:5173/empty.docx",
+                permissions: {
+                    edit: true,
+                    print: true,
+                    download: true,
+                    copy: true,
+                    comment: true,
+                    review: true
+                }
+            },
+            editorConfig: {
+                mode: "edit",
+                lang: "zh",
+                user: {
+                    id: "test_user",
+                    name: "测试用户"
+                }
+            },
+            events: {
+                onAppReady: function() {
+                    console.log("✅ OnlyOffice 测试成功！");
+                    document.getElementById("status").innerHTML = "✅ OnlyOffice应用已准备就绪";
+                },
+                onDocumentReady: function() {
+                    console.log("📄 文档加载完成");
+                    document.getElementById("status").innerHTML = "✅ 文档加载成功，可以开始编辑";
+                },
+                onInfo: function(event) {
+                    console.log("ℹ️ OnlyOffice 信息:", event);
+                },
+                onWarning: function(event) {
+                    console.warn("⚠️ OnlyOffice 警告:", event);
+                },
+                onError: function(event) {
+                    console.error("❌ OnlyOffice 错误:", event);
+                    document.getElementById("status").innerHTML = "❌ 连接失败: " + JSON.stringify(event);
+                }
+            }
+        });
+    </script>
+    
+    <div id="status" style="margin-top: 20px; padding: 10px; background: #f0f0f0;">
+        🔄 正在连接 OnlyOffice...
+    </div>
+</body>
+</html> 
