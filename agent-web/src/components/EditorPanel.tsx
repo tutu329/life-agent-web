@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useCallback } from 'react'
 import { Tabs, Button, Modal, Form, Input, Space } from 'antd'
 import { BarChartOutlined, FileTextOutlined, SettingOutlined, SaveOutlined, FolderOpenOutlined, PrinterOutlined, UndoOutlined, RedoOutlined, BoldOutlined, ItalicOutlined, UnderlineOutlined } from '@ant-design/icons'
 import { DocumentEditor } from '@onlyoffice/document-editor-react'
@@ -7,10 +7,75 @@ const EditorPanel: React.FC = () => {
   const [isRemoteToolModalOpen, setIsRemoteToolModalOpen] = useState(false)
   const [form] = Form.useForm()
   const [onlyOfficeError, setOnlyOfficeError] = useState<string | null>(null)
+  
+  // 使用 useRef 来保持 document key 的稳定性
+  const documentKeyRef = useRef(`document_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`)
+  
   const [remoteToolConfig, setRemoteToolConfig] = useState({
     port: 5122,
     description: '本工具用于控制only-office进行office文档的读写操作。'
   })
+
+  // 文档配置对象，使用 useCallback 确保引用稳定
+  const documentConfig = useCallback(() => ({
+    width: '100%',
+    height: '100%',
+    type: 'desktop',
+    documentType: 'word',
+    document: {
+      fileType: 'docx',
+      key: documentKeyRef.current, // 使用固定的 key
+      title: '新建文档.docx',
+      url: 'http://powerai.cc:5101/empty.docx',
+      permissions: {
+        edit: true,
+        print: true,
+        download: true,
+        copy: true,
+        comment: true,
+        review: true
+      }
+    },
+    editorConfig: {
+      mode: 'edit',
+      lang: 'zh',
+      user: {
+        id: 'user1',
+        name: 'User'
+      },
+      customization: {
+        autosave: true,
+        compactToolbar: true,
+        hideRightMenu: false,
+        toolbarNoTabs: true,
+        uiTheme: 'theme-light',
+        forcesave: false,
+        integrationMode: 'embed'
+      }
+    },
+    events: {
+      onAppReady: () => {
+        console.log('✅ OnlyOffice 应用已准备就绪')
+        setOnlyOfficeError(null)
+      },
+      onDocumentReady: () => {
+        console.log('📄 文档已加载完成')
+      },
+      onInfo: (event: any) => {
+        console.log('ℹ️ OnlyOffice 信息:', event)
+      },
+      onWarning: (event: any) => {
+        console.warn('⚠️ OnlyOffice 警告:', event)
+      },
+      onError: (event: any) => {
+        console.error('❌ OnlyOffice 错误:', event)
+        setOnlyOfficeError(`OnlyOffice错误: ${event?.data?.error || JSON.stringify(event)}`)
+      },
+      onRequestSaveAs: (event: any) => {
+        console.log('💾 请求另存为:', event)
+      }
+    }
+  }), [])
 
   const showRemoteToolModal = () => {
     setIsRemoteToolModalOpen(true)
@@ -180,67 +245,10 @@ const EditorPanel: React.FC = () => {
                 }}
               >
                 <DocumentEditor
+                  key={documentKeyRef.current}
                   id="onlyOfficeEditor"
                   documentServerUrl="http://powerai.cc:5102/"
-                  config={{
-                    width: '100%',
-                    height: '100%',
-                    type: 'desktop',
-                    documentType: 'word',
-                    document: {
-                      fileType: 'docx',
-                      key: 'blank_document_' + Date.now(),
-                      title: '新建文档.docx',
-                      url: 'http://powerai.cc:5101/empty.docx',
-                      permissions: {
-                        edit: true,
-                        print: true,
-                        download: true,
-                        copy: true,
-                        comment: true,
-                        review: true
-                      }
-                    },
-                    editorConfig: {
-                      mode: 'edit',
-                      lang: 'zh',
-                      user: {
-                        id: 'user1',
-                        name: 'User'
-                      },
-                      customization: {
-                        autosave: true,
-                        compactToolbar: true,
-                        hideRightMenu: false,
-                        toolbarNoTabs: true,
-                        uiTheme: 'theme-light',
-                        forcesave: false,
-                        integrationMode: 'embed'
-                      }
-                    },
-                    events: {
-                      onAppReady: () => {
-                        console.log('✅ OnlyOffice 应用已准备就绪')
-                        setOnlyOfficeError(null)
-                      },
-                      onDocumentReady: () => {
-                        console.log('📄 文档已加载完成')
-                      },
-                      onInfo: (event: any) => {
-                        console.log('ℹ️ OnlyOffice 信息:', event)
-                      },
-                      onWarning: (event: any) => {
-                        console.warn('⚠️ OnlyOffice 警告:', event)
-                      },
-                      onError: (event: any) => {
-                        console.error('❌ OnlyOffice 错误:', event)
-                        setOnlyOfficeError(`OnlyOffice错误: ${event?.data?.error || JSON.stringify(event)}`)
-                      },
-                      onRequestSaveAs: (event: any) => {
-                        console.log('💾 请求另存为:', event)
-                      }
-                    }
-                  }}
+                  config={documentConfig()}
                 />
               </div>
             )}
