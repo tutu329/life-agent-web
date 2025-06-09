@@ -46,8 +46,8 @@ const ResourcePanel: React.FC = () => {
   }
 
   return (
-    <div style={{ padding: '16px', height: '100%' }}>
-      <Title level={5} style={{ marginBottom: '16px', color: '#1677ff', fontSize: '12px' }}>
+    <div style={{ padding: '8px 16px 16px 16px', height: '100%' }}>
+      <Title level={5} style={{ marginBottom: '16px', color: '#2c3e50', fontSize: '12px', marginTop: '0' }}>
         资源
       </Title>
       <Tree

@@ -198,7 +198,8 @@ function App() {
       theme={{
         algorithm: theme.defaultAlgorithm,
         token: {
-          colorPrimary: '#1677ff',
+          colorPrimary: '#4a4a4a',
+          colorInfo: '#4a4a4a',
         },
       }}
     >
@@ -206,12 +207,12 @@ function App() {
         <Layout style={{ height: '100vh' }}>
           {/* 顶部 Header */}
           <Header style={{ 
-            background: '#fff', 
+            background: '#f8f9fa', 
             padding: '0 8px', 
             height: '24px',
             lineHeight: '24px',
             minHeight: '24px',
-            borderBottom: '1px solid #f0f0f0',
+            borderBottom: '1px solid #e8e8e8',
             position: 'relative'
           }}>
             {/* 左侧工具栏按钮 - 已隐藏 */}
@@ -251,8 +252,8 @@ function App() {
             <Sider 
               width={280} 
               style={{ 
-                background: '#fafafa',
-                borderRight: '1px solid #f0f0f0'
+                background: '#f8f9fa',
+                borderRight: '1px solid #e8e8e8'
               }}
             >
               <ResourcePanel />
@@ -261,7 +262,7 @@ function App() {
             {/* 中栏 - 编辑区 */}
             <Content style={{ 
               background: '#fff',
-              borderRight: '1px solid #f0f0f0'
+              borderRight: '1px solid #e8e8e8'
             }}>
               <EditorPanel />
             </Content>
@@ -269,7 +270,7 @@ function App() {
             {/* 右栏 - 交互区 */}
             <div style={{ 
               width: rightSiderWidth,
-              background: '#fafafa',
+              background: '#f8f9fa',
               position: 'relative',
               display: 'flex'
             }}>
@@ -277,14 +278,14 @@ function App() {
               <div
                 style={{
                   width: '4px',
-                  background: isResizing ? '#1677ff' : 'transparent',
+                  background: isResizing ? '#4a4a4a' : 'transparent',
                   cursor: 'col-resize',
                   position: 'absolute',
                   left: 0,
                   top: 0,
                   bottom: 0,
                   zIndex: 10,
-                  borderLeft: '1px solid #f0f0f0'
+                  borderLeft: '1px solid #e8e8e8'
                 }}
                 onMouseDown={handleMouseDown}
               />
@@ -319,7 +320,7 @@ function App() {
                       <Option key={key} value={key}>
                         {model.name || key}
                         {!DEFAULT_MODEL_PRESETS[key] && (
-                          <span style={{ color: '#1677ff', marginLeft: '8px' }}>
+                          <span style={{ color: '#4a4a4a', marginLeft: '8px' }}>
                             (自定义)
                           </span>
                         )}

@@ -302,13 +302,13 @@ const InteractionPanel: React.FC = () => {
             <Avatar 
               icon={message.isUser ? <UserOutlined /> : <RobotOutlined />}
               style={{ 
-                backgroundColor: message.hasError ? '#ff4d4f' : (message.isUser ? '#1677ff' : '#52c41a')
+                backgroundColor: message.hasError ? '#ff4d4f' : (message.isUser ? '#4a4a4a' : '#6c757d')
               }}
             />
           }
           title={
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Text strong style={{ color: message.hasError ? '#ff4d4f' : (message.isUser ? '#1677ff' : '#52c41a') }}>
+              <Text strong style={{ color: message.hasError ? '#ff4d4f' : (message.isUser ? '#4a4a4a' : '#6c757d') }}>
                 {message.isUser ? '您' : 'AI助手'}
               </Text>
               {message.isStreaming && (
@@ -368,10 +368,10 @@ const InteractionPanel: React.FC = () => {
       display: 'flex', 
       flexDirection: 'column', 
       height: '100%', 
-      padding: '16px' 
+      padding: '8px 16px 16px 16px' 
     }}>
       {/* 标题 */}
-      <Title level={5} style={{ marginBottom: '16px', color: '#1677ff', fontSize: '12px' }}>
+      <Title level={5} style={{ marginBottom: '16px', color: '#2c3e50', fontSize: '12px', marginTop: '0' }}>
         智能交互
       </Title>
 
@@ -388,7 +388,7 @@ const InteractionPanel: React.FC = () => {
         flex: 1, 
         overflowY: 'auto', 
         marginBottom: '16px',
-        border: '1px solid #f0f0f0',
+        border: '1px solid #e8e8e8',
         borderRadius: '8px',
         padding: '12px',
         background: '#fff'
