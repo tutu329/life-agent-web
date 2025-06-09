@@ -1,15 +1,19 @@
 /* App 组件样式 */
 .ant-layout {
-  background: #f5f5f5;
+  background: #ffffff;
 }
 
 .ant-layout-header {
   height: 48px;
   line-height: 48px;
+  background: #f8fafc !important;
+  border-bottom: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .ant-layout-sider {
-  background: #f8f9fa !important;
+  background: #f1f5f9 !important;
+  border-right: 1px solid #e2e8f0;
 }
 
 /* 确保布局占满整个屏幕 */
@@ -21,17 +25,80 @@
 /* Thinking框样式 */
 .thinking-collapse .ant-collapse-header {
   padding: 8px 12px !important;
-  background-color: #f6f8fa !important;
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  margin-bottom: 4px;
+  transition: all 0.2s ease;
 }
 
 .thinking-collapse .ant-collapse-header:hover {
-  background-color: #e1e7ec !important;
+  background: #f1f5f9 !important;
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .thinking-collapse .ant-collapse-content {
-  background-color: transparent !important;
+  background: transparent !important;
+  border: none !important;
 }
 
 .thinking-collapse .ant-collapse-content-box {
   padding: 8px 12px !important;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  margin-top: -4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* 自定义滚动条样式 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f8fafc;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* 分割线样式优化 */
+.resize-handle {
+  background: #e2e8f0 !important;
+  transition: background-color 0.2s ease;
+}
+
+.resize-handle:hover {
+  background: #cbd5e1 !important;
+}
+
+/* 优化卡片和面板样式 */
+.ant-card {
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.ant-card-head {
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+/* 优化按钮样式 */
+.ant-btn-text {
+  color: #64748b;
+}
+
+.ant-btn-text:hover {
+  color: #475569;
+  background: #f1f5f9;
 } 

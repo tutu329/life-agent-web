@@ -212,7 +212,10 @@ const EditorPanel: React.FC = () => {
                         autosave: true,
                         compactToolbar: true,
                         hideRightMenu: false,
-                        toolbarNoTabs: true
+                        toolbarNoTabs: true,
+                        uiTheme: 'theme-light',
+                        forcesave: false,
+                        integrationMode: 'embed'
                       }
                     },
                     events: {

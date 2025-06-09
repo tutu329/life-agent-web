@@ -198,8 +198,17 @@ function App() {
       theme={{
         algorithm: theme.defaultAlgorithm,
         token: {
-          colorPrimary: '#4a4a4a',
-          colorInfo: '#4a4a4a',
+          colorPrimary: '#64748b',
+          colorInfo: '#64748b',
+          colorBgContainer: '#ffffff',
+          colorBgElevated: '#f8fafc',
+          colorBgLayout: '#ffffff',
+          colorBorder: '#e2e8f0',
+          colorBorderSecondary: '#f1f5f9',
+          colorText: '#2c3e50',
+          colorTextSecondary: '#64748b',
+          colorTextTertiary: '#94a3b8',
+          borderRadius: 8,
         },
       }}
     >
@@ -207,13 +216,14 @@ function App() {
         <Layout style={{ height: '100vh' }}>
           {/* 顶部 Header */}
           <Header style={{ 
-            background: '#f8f9fa', 
+            background: '#f8fafc', 
             padding: '0 8px', 
             height: '24px',
             lineHeight: '24px',
             minHeight: '24px',
-            borderBottom: '1px solid #e8e8e8',
-            position: 'relative'
+            borderBottom: '1px solid #e2e8f0',
+            position: 'relative',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
           }}>
             {/* 左侧工具栏按钮 - 已隐藏 */}
             <div style={{ display: 'none' }}>
@@ -252,8 +262,8 @@ function App() {
             <Sider 
               width={280} 
               style={{ 
-                background: '#f8f9fa',
-                borderRight: '1px solid #e8e8e8'
+                background: '#f1f5f9',
+                borderRight: '1px solid #e2e8f0'
               }}
             >
               <ResourcePanel />
@@ -261,8 +271,8 @@ function App() {
 
             {/* 中栏 - 编辑区 */}
             <Content style={{ 
-              background: '#fff',
-              borderRight: '1px solid #e8e8e8'
+              background: '#ffffff',
+              borderRight: '1px solid #e2e8f0'
             }}>
               <EditorPanel />
             </Content>
@@ -270,7 +280,7 @@ function App() {
             {/* 右栏 - 交互区 */}
             <div style={{ 
               width: rightSiderWidth,
-              background: '#f8f9fa',
+              background: '#f1f5f9',
               position: 'relative',
               display: 'flex'
             }}>
@@ -278,14 +288,14 @@ function App() {
               <div
                 style={{
                   width: '4px',
-                  background: isResizing ? '#4a4a4a' : 'transparent',
+                  background: isResizing ? '#94a3b8' : 'transparent',
                   cursor: 'col-resize',
                   position: 'absolute',
                   left: 0,
                   top: 0,
                   bottom: 0,
                   zIndex: 10,
-                  borderLeft: '1px solid #e8e8e8'
+                  borderLeft: '1px solid #e2e8f0'
                 }}
                 onMouseDown={handleMouseDown}
               />
