@@ -38,6 +38,18 @@ cd /home/tutu/server/life-agent-web
 echo "📌 使用Node.js版本: $(node --version)"
 echo "📌 使用npm版本: $(npm --version)"
 
+# 1. 重启only-office-server docker服务 (5102端口)
+echo "🔄 重启OnlyOffice服务器..."
+docker stop onlyoffice-server || true
+docker start onlyoffice-server
+echo "✅ OnlyOffice服务器已重启"
+
+# 2. kill掉已有的5101端口应用
+echo "🛑 停止已有的5101端口应用..."
+sudo pkill -f "port.*5101" || true
+sudo lsof -ti:5101 | xargs sudo kill -9 || true
+echo "✅ 5101端口已清理"
+
 # 检查是否存在package.json
 if [ ! -f "package.json" ]; then
   echo "❌ 项目未找到，请先运行 ./deploy-remote.sh 部署项目"
