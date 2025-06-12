@@ -1,0 +1,21 @@
+{
+  "name": "agent_listener3",
+  "guid": "asc.{AGENT-LISTENER3-2024-0612-001}",
+  "version": "1.0.0",
+  "baseUrl": "",
+  "variations": [
+    {
+      "description": "agent_listener3",
+      "url": "index.html",
+      "icons": ["icon.png"],
+      "isViewer": false,
+      "EditorsSupport": ["word"],
+      "isSystem": true,
+      "isVisual": false,
+      "initDataType": "none",
+      "initData": "",
+      "buttons": [],
+      "events": ["onDocumentContentReady"]
+    }
+  ]
+} 
