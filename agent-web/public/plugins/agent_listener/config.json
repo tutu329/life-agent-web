@@ -1,11 +1,11 @@
 {
-  "name": "hello world1",
-  "guid": "asc.{FFE1F462-1EA2-4391-990D-4CC84940B754}",
+  "name": "agent_listener",
+  "guid": "asc.{AGENT-LISTENER-2024-0612-001}",
   "version": "1.0.0",
   "baseUrl": "",
   "variations": [
     {
-      "description": "hello world",
+      "description": "agent_listener",
       "url": "index.html",
       "icons": ["icon.png"],
       "isViewer": false,
