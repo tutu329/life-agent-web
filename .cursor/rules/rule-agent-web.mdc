@@ -11,4 +11,5 @@ agent-web项目注意事项：
 3）remote-dev.sh用于同步文件到powerai.cc，并重启agent-web页面、only-office-server等
 4）插件部署的关键是：
 a）视情况，要解决only-office-server(5102)访问agent-web文件(5101)的跨域问题
-b）其他可能问题还在测试中
+b）插件应放在powerai.cc的only-office-server的docker容器onlyoffice-server-5102的/var/www/onlyoffice/documentserver/sdkjs-plugins/下
+c）其他可能问题还在测试中
