@@ -1,0 +1,19 @@
+{
+  "name": "hello world1",
+  "guid": "asc.{FFE1F462-1EA2-4391-990D-4CC84940B754}",
+  "version": "1.0.0",
+  "baseUrl": "",
+  "variations": [
+    {
+      "description": "hello world",
+      "url": "index.html",
+      "icons": ["icon.png"],
+      "isViewer": false,
+      "EditorsSupport": ["word"],
+      "isVisual": false,
+      "initDataType": "none",
+      "initData": "",
+      "buttons": []
+    }
+  ]
+} 
