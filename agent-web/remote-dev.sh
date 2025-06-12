@@ -40,8 +40,8 @@ echo "📌 使用npm版本: $(npm --version)"
 
 # 1. 重启only-office-server docker服务 (5102端口)
 echo "🔄 重启OnlyOffice服务器..."
-docker stop onlyoffice-server || true
-docker start onlyoffice-server
+sudo docker stop onlyoffice-server-5102 || true
+sudo docker start onlyoffice-server-5102
 echo "✅ OnlyOffice服务器已重启"
 
 # 2. kill掉已有的5101端口应用
