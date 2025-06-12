@@ -1,0 +1,14 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+life-agent-web是我的整个项目包
+agent-web是我目前在做的具体项目，主要是做一个三栏的页面，中间栏里的'报告编制'里的only-office控件是我目前重点工作，目前主要是要走通only-office控件在打开docx后自动运行一个plugin，并注入'hello world'字符串到docx中（先走通最简单的，后续我要让这个插件响应后台agent指令，并将agent生成结果实时注入到docx中）。
+agent-web项目注意事项：
+1）agent-web页面部署在powerai.cc:5101
+2）我部署的only-office-server(部署在powerai.cc:5102)是开源社区版，不支持automation api，只能用插件方式解决我的需求
+3）remote-dev.sh用于同步文件到powerai.cc，并重启agent-web页面、only-office-server等
+4）插件部署的关键是：
+a）视情况，要解决only-office-server(5102)访问agent-web文件(5101)的跨域问题
+b）其他可能问题还在测试中
