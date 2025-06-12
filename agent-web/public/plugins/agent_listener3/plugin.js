@@ -15,11 +15,9 @@
         
         var self = this;
         
-        // 2秒后启动WebSocket连接
-        setTimeout(function() {
-            console.log('🔌 启动WebSocket连接');
-            self.startWebSocket();
-        }, 2000);
+        // 立即启动WebSocket连接
+        console.log('🔌 启动WebSocket连接');
+        self.startWebSocket();
         
         console.log('🚀 init() 方法执行完成');
     };
@@ -49,45 +47,46 @@
             var self = this;
             
             websocket.onopen = function(event) {
-                console.log('🔗 WebSocket连接已打开', event);
+                var timestamp = new Date().toLocaleTimeString();
+                console.log('🔗 [' + timestamp + '] WebSocket连接已打开', event);
             };
             
             websocket.onmessage = function(event) {
-                console.log('📨 收到WebSocket消息:', event.data);
+                var timestamp = new Date().toLocaleTimeString();
+                console.log('📨 [' + timestamp + '] 收到WebSocket消息:', event.data);
                 self.doInject(event.data);
             };
             
             websocket.onclose = function(event) {
-                console.log('❌ WebSocket连接已关闭', event);
-                // 3秒后重新连接
-                setTimeout(function() {
-                    console.log('🔄 尝试重新连接WebSocket');
-                    self.startWebSocket();
-                }, 3000);
+                var timestamp = new Date().toLocaleTimeString();
+                console.log('❌ [' + timestamp + '] WebSocket连接已关闭, 代码:' + event.code);
+                console.log('🔄 立即重连');
+                self.startWebSocket();
             };
             
             websocket.onerror = function(error) {
-                console.error('❌ WebSocket连接错误:', error);
+                var timestamp = new Date().toLocaleTimeString();
+                console.error('❌ [' + timestamp + '] WebSocket连接错误:', error);
             };
             
         } catch (error) {
             console.error('❌ WebSocket连接失败:', error);
-            // 5秒后重试
+            console.log('🔄 连接失败，尝试重连');
             var self = this;
-            setTimeout(function() {
-                console.log('🔄 WebSocket连接失败，5秒后重试');
-                self.startWebSocket();
-            }, 5000);
+            // 使用递归调用而不是setTimeout
+            self.startWebSocket();
         }
     };
 
     // 注入文本
     window.Asc.plugin.doInject = function(message) {
         console.log('📝 开始注入文本, 消息: ' + message);
-        window.Asc.scope.message = message;
+        console.log('🔍 WebSocket状态: ' + (websocket ? websocket.readyState : 'null'));
         
         this.callCommand(function() {
-            var str_msg = window.Asc.scope.message  // 官方用window.Asc.scope这个特殊变量向callCommand传递参数
+            var str_msg = 'oh my god';
+            console.log('📞 进入回调');
+            console.log(window.Asc);
             console.log('📞 进入回调');
             
             var oDocument = Api.GetDocument();
@@ -97,15 +96,11 @@
             }
             
             var oParagraph = Api.CreateParagraph();
-            oParagraph.AddText('Agent指令 #' + ': ' + str_msg);
-            // oParagraph.AddText('[' + data.timestamp + '] Agent指令 #' + data.count + ': ' + data.message);
+            oParagraph.AddText('Agent指令: ' + str_msg);
             oDocument.InsertContent([oParagraph], 0);
             
             console.log('✅ 注入完成，内容: ' + str_msg);
-            
-            // 清理临时数据
-            // delete window._tempInjectData;
-        }, true, message);
+        }, true);
     };
 
     // 按钮事件
@@ -116,6 +111,8 @@
     // 销毁时清理
     window.Asc.plugin.onDestroy = function() {
         console.log('🗑️ 插件销毁');
+        
+        // 清理WebSocket连接
         if (websocket) {
             websocket.close();
             websocket = null;
