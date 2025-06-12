@@ -56,9 +56,9 @@ async def periodic_sender():
         message = f"tell me your name. [{message_count}]"
         await broadcast_message(message)
 
-async def handle_client(websocket, path):
-    """处理客户端连接"""
-    logger.info(f"新的WebSocket连接: {websocket.remote_address}, 路径: {path}")
+async def handle_client(websocket):
+    """处理客户端连接 - 兼容新版本websockets"""
+    logger.info(f"新的WebSocket连接: {websocket.remote_address}")
     await register_client(websocket)
 
 async def main():

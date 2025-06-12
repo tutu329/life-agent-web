@@ -7,7 +7,6 @@
     console.log('📦 Agent Listener3 Plugin - 插件脚本开始加载');
     
     var websocket = null;
-    var injectCount = 0;
     var wsUrl = 'ws://powerai.cc:5112'; // WebSocket服务器地址
 
     // 插件初始化
@@ -28,7 +27,10 @@
     // 文档内容准备好后的事件处理
     window.Asc.plugin.onDocumentContentReady = function() {
         console.log('📄 onDocumentContentReady 事件触发');
-        this.startWebSocket();
+        // 避免重复启动WebSocket
+        if (!websocket || websocket.readyState !== WebSocket.OPEN) {
+            this.startWebSocket();
+        }
     };
 
     // 启动WebSocket连接
@@ -82,8 +84,10 @@
     // 注入文本
     window.Asc.plugin.doInject = function(message) {
         console.log('📝 开始注入文本, 消息: ' + message);
+        window.Asc.scope.message = message;
         
         this.callCommand(function() {
+            var str_msg = window.Asc.scope.message  // 官方用window.Asc.scope这个特殊变量向callCommand传递参数
             console.log('📞 进入回调');
             
             var oDocument = Api.GetDocument();
@@ -93,12 +97,15 @@
             }
             
             var oParagraph = Api.CreateParagraph();
-            var timestamp = new Date().toLocaleTimeString();
-            oParagraph.AddText('[' + timestamp + '] Agent指令: ' + message);
+            oParagraph.AddText('Agent指令 #' + ': ' + str_msg);
+            // oParagraph.AddText('[' + data.timestamp + '] Agent指令 #' + data.count + ': ' + data.message);
             oDocument.InsertContent([oParagraph], 0);
             
-            console.log('✅ 注入完成');
-        }, true);
+            console.log('✅ 注入完成，内容: ' + str_msg);
+            
+            // 清理临时数据
+            // delete window._tempInjectData;
+        }, true, message);
     };
 
     // 按钮事件

@@ -59,11 +59,11 @@
 
     // 注入文本（简化版本）
     window.Asc.plugin.doInject = function() {
-        injectCount++;
-        console.log('📝 开始注入文本 - 第' + injectCount + '次');
+        // injectCount++;
+        // console.log('📝 开始注入文本 - 第' + injectCount + '次');
         
         this.callCommand(function() {
-            console.log('📞 进入回调 - 第' + injectCount + '次');
+            // console.log('📞 进入回调 - 第' + injectCount + '次');
             
             var oDocument = Api.GetDocument();
             if (!oDocument) {
@@ -72,10 +72,11 @@
             }
             
             var oParagraph = Api.CreateParagraph();
-            oParagraph.AddText("大家好啊！[" + injectCount + "]");
+            oParagraph.AddText("大家好啊！");
+            // oParagraph.AddText("大家好啊！[" + injectCount + "]");
             oDocument.InsertContent([oParagraph], 0);
             
-            console.log('✅ 注入完成 - 第' + injectCount + '次');
+            console.log('✅ 注入完成');
         }, true);
     };
 
