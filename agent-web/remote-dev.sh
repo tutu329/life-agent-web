@@ -38,13 +38,22 @@ cd /home/tutu/server/life-agent-web
 echo "📌 使用Node.js版本: $(node --version)"
 echo "📌 使用npm版本: $(npm --version)"
 
-# 1. 重启only-office-server docker服务 (5102端口)
+# 1. 部署插件到OnlyOffice容器
+echo "🔌 部署插件到OnlyOffice服务器..."
+if [ -f "deploy-plugins.sh" ]; then
+  chmod +x deploy-plugins.sh
+  ./deploy-plugins.sh
+else
+  echo "⚠️ 警告: deploy-plugins.sh 文件未找到，跳过插件部署"
+fi
+
+# 2. 重启only-office-server docker服务 (5102端口)
 echo "🔄 重启OnlyOffice服务器..."
 sudo docker stop onlyoffice-server-5102 || true
 sudo docker start onlyoffice-server-5102
 echo "✅ OnlyOffice服务器已重启"
 
-# 2. kill掉已有的5101端口应用
+# 3. kill掉已有的5101端口应用
 echo "🛑 停止已有的5101端口应用..."
 sudo pkill -f "port.*5101" || true
 sudo lsof -ti:5101 | xargs sudo kill -9 || true
