@@ -21,10 +21,11 @@ const EditorPanel: React.FC = () => {
     const accessToken = 'demo_token'
     const wopiSrc = `${wopiServerUrl}/wopi/files/${fileId}`
     
-    // 使用新版本 Collabora CODE 的正确路径
+    // 使用新版本 Collabora CODE 的正确路径，添加中文语言支持
     const url = `${collaboraUrl}/browser/dist/cool.html?` +
       `WOPISrc=${encodeURIComponent(wopiSrc)}&` +
-      `access_token=${accessToken}`
+      `access_token=${accessToken}&` +
+      `lang=zh-CN`
     
     console.log('🔗 生成的 WOPI URL (HTTPS):', url)
     console.log('📋 WOPI Source:', wopiSrc)

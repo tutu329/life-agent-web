@@ -90,19 +90,20 @@ sudo chown 1001:ssl-cert /home/tutu/ssl/powerai.key /home/tutu/ssl/powerai_publi
 sudo chmod 640 /home/tutu/ssl/powerai.key  # 私钥：所有者和组可读
 sudo chmod 644 /home/tutu/ssl/powerai_public.crt /home/tutu/ssl/powerai_chain.crt  # 公钥：所有人可读
 
-# 启动 Collabora CODE 容器，使用 SSL 证书
-echo "🚀 启动 Collabora CODE 服务器 (使用 SSL 证书)..."
+# 启动 Collabora CODE 容器，使用 SSL 证书和中文语言支持
+echo "🚀 启动 Collabora CODE 服务器 (使用 SSL 证书和中文语言支持)..."
 sudo docker run -d \
   --name collabora-code-5102 \
   -p 5102:9980 \
   -e "domain=.*" \
   -e "DONT_GEN_SSL_CERT=1" \
-  -e "extra_params=--o:ssl.enable=true --o:ssl.termination=false --o:ssl.cert_file_path=/opt/ssl/powerai_public.crt --o:ssl.key_file_path=/opt/ssl/powerai.key --o:ssl.ca_file_path=/opt/ssl/powerai_chain.crt" \
+  -e "dictionaries=en_US zh_CN" \
+  -e "extra_params=--o:ssl.enable=true --o:ssl.termination=false --o:ssl.cert_file_path=/opt/ssl/powerai_public.crt --o:ssl.key_file_path=/opt/ssl/powerai.key --o:ssl.ca_file_path=/opt/ssl/powerai_chain.crt --o:net.content_security_policy=frame-ancestors * --o:default_language=zh-CN" \
   -v /home/tutu/ssl:/opt/ssl:ro \
   --restart unless-stopped \
   collabora/code:latest
 
-echo "✅ Collabora CODE 服务器已重启 (使用 powerai.cc SSL 证书)"
+echo "✅ Collabora CODE 服务器已重启 (使用 powerai.cc SSL 证书和中文语言支持)"
 
 # 3. 启动 WOPI 服务器 (5103端口)
 echo "🔗 启动 WOPI 服务器..."

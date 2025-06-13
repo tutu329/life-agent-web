@@ -13,6 +13,8 @@ export interface WOPIFileInfo {
   PostMessageOrigin: string
   LastModifiedTime: string
   SHA256?: string
+  // 用户语言偏好
+  UserPreferredLanguage?: string
 }
 
 export interface WOPIResponse {
@@ -49,7 +51,8 @@ export class WOPIService {
         UserCanNotWriteRelative: false,
         PostMessageOrigin: this.baseUrl,
         LastModifiedTime: new Date().toISOString(),
-        SHA256: 'dummy-hash'
+        SHA256: 'dummy-hash',
+        UserPreferredLanguage: 'zh-CN' // 设置用户偏好语言为简体中文
       }
 
       return { success: true, data: fileInfo }
