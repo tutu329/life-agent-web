@@ -1,0 +1,59 @@
+1. 使用了正确的官方API格式
+// ✅ 正确的Action_Paste格式
+{
+  MessageId: 'Action_Paste',
+  SendTime: Date.now(),
+  Values: {
+    Mimetype: 'text/plain;charset=utf-8',
+    Data: insertText
+  }
+}
+
+// ✅ 正确的Send_UNO_Command格式
+{
+  MessageId: 'Send_UNO_Command',
+  SendTime: Date.now(),
+  Values: {
+    Command: '.uno:InsertText',
+    Args: {
+      Text: {
+        type: 'string',
+        value: insertText
+      }
+    }
+  }
+}
+
+2. 正确的PostMessage目标地址
+从 '*' 改为 'https://powerai.cc:5102' (CODE服务器地址)
+这确保了消息发送到正确的iframe源
+
+3. 正确的Host_PostmessageReady初始化
+// ✅ 多重发送确保初始化成功
+iframeRef.current.contentWindow?.postMessage(readyMessage, 'https://powerai.cc:5102')
+iframeRef.current.contentWindow?.postMessage(readyMessage, 'https://powerai.cc:5103') 
+iframeRef.current.contentWindow?.postMessage(readyMessage, '*')
+
+4. WOPI配置正确
+PostMessageOrigin: 'https://powerai.cc:5101' 告诉CODE哪个域可以发送PostMessage
+这是WOPI协议的关键配置
+
+🚀 现在的工作流程
+1）WebSocket接收Agent指令 ✅
+   wss://powerai.cc:5112 → 前端
+
+2）PostMessage API插入文本 ✅
+   前端 → Collabora CODE iframe → 文档
+
+3）实时显示效果 ✅
+   Agent指令 → 立即显示在docx中
+
+📊 技术总结
+之前失败的原因：
+❌ 使用了非标准的API格式
+❌ PostMessage目标地址不正确
+❌ 没有正确初始化Host_PostmessageReady
+现在成功的原因：
+✅ 严格按照官方文档的API格式
+✅ 正确的消息路由和域配置
+✅ 完整的初始化流程
