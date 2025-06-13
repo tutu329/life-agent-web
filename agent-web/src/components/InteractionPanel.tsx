@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Input, List, Avatar, Typography, Divider, Alert, Spin, Button, message, Collapse } from 'antd'
-import { UserOutlined, RobotOutlined, SendOutlined, ReloadOutlined, CaretRightOutlined } from '@ant-design/icons'
+import { Input, List, Avatar, Typography, Divider, Spin, Button, message, Collapse, Switch, Card } from 'antd'
+import { UserOutlined, RobotOutlined, SendOutlined, ReloadOutlined, CaretRightOutlined, ApiOutlined, LoadingOutlined } from '@ant-design/icons'
 import { useLLMConfig } from '../App'
 import { LLMService, ChatMessage } from '../services/llmService'
+import { AgentService, StreamType } from '../services/agentService'
 
 const { Search } = Input
 const { Title, Text, Paragraph } = Typography
@@ -16,8 +17,12 @@ interface Message {
   isStreaming?: boolean
   hasError?: boolean
   canRetry?: boolean
-  hasThinking?: boolean // 用于标记这条消息是否应该显示thinking框
+  hasThinking?: boolean
+  streamType?: StreamType
+  isAgentMode?: boolean
 }
+
+
 
 const InteractionPanel: React.FC = () => {
   const llmConfig = useLLMConfig()
@@ -36,11 +41,127 @@ const InteractionPanel: React.FC = () => {
   const [inputValue, setInputValue] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const llmServiceRef = useRef<LLMService | null>(null)
+  
+  // Agent相关的状态
+  const [useAgentMode, setUseAgentMode] = useState(false)
+  const [agentService] = useState(() => new AgentService())
+  const [agentInitialized, setAgentInitialized] = useState(false)  
+  const [agentId, setAgentId] = useState<string | null>(null)
+  const [isInitializingAgent, setIsInitializingAgent] = useState(false)
+  
+  // 当前活跃的流监听器
+  const activeStreamsRef = useRef<Set<string>>(new Set())
 
   // 初始化LLM服务
   useEffect(() => {
     llmServiceRef.current = new LLMService(llmConfig)
   }, [llmConfig])
+
+  // 初始化Agent系统
+  useEffect(() => {
+    if (useAgentMode && !agentInitialized && !isInitializingAgent) {
+      initializeAgent()
+    }
+  }, [useAgentMode])
+
+  const initializeAgent = async () => {
+    setIsInitializingAgent(true)
+    try {
+      console.log('🚀 开始初始化Agent系统...')
+      const id = await agentService.initializeAgentSystem()
+      setAgentId(id)
+      setAgentInitialized(true)
+      console.log('✅ Agent系统初始化完成，ID:', id)
+      
+      // 添加系统消息
+      const systemMessage: Message = {
+        id: Date.now(),
+        content: `✅ Agent系统已初始化完成！\nAgent ID: ${id}\n现在可以开始与后台Agent系统进行交互了。`,
+        isUser: false,
+        timestamp: new Date(),
+        isAgentMode: true
+      }
+      setMessages(prev => [...prev, systemMessage])
+      
+    } catch (error) {
+      console.error('❌ Agent系统初始化失败:', error)
+      message.error(`Agent系统初始化失败: ${error instanceof Error ? error.message : '未知错误'}`)
+      setUseAgentMode(false) // 初始化失败时关闭Agent模式
+    } finally {
+      setIsInitializingAgent(false)
+    }
+  }
+
+  // 获取流类型对应的颜色和图标
+  const getStreamStyle = (streamType: StreamType): { color: string; backgroundColor: string; icon: string } => {
+    switch (streamType) {
+      case 'output':
+        return { color: '#52c41a', backgroundColor: '#f6ffed', icon: '📄' }
+      case 'thinking':
+        return { color: '#1890ff', backgroundColor: '#f0f8ff', icon: '🤔' }
+      case 'final_answer':
+        return { color: '#f5222d', backgroundColor: '#fff2f0', icon: '✅' }
+      case 'log':
+        return { color: '#8c8c8c', backgroundColor: '#f5f5f5', icon: '📋' }
+      case 'tool_rtn_data':
+        return { color: '#fa8c16', backgroundColor: '#fff7e6', icon: '🔧' }
+      default:
+        return { color: '#595959', backgroundColor: '#fafafa', icon: '💬' }
+    }
+  }
+
+  // 监听单个SSE流
+  const listenToStream = async (streamId: string, streamName: StreamType, messageId: number) => {
+    const streamKey = `${streamId}-${streamName}`
+    if (activeStreamsRef.current.has(streamKey)) {
+      console.log(`流 ${streamName} 已在监听中，跳过重复监听`)
+      return
+    }
+    
+    activeStreamsRef.current.add(streamKey)
+    console.log(`🔗 开始监听流: ${streamName}`)
+    
+    try {
+      for await (const event of agentService.listenToStream(streamId, streamName)) {
+        // 更新对应的消息内容
+        setMessages(prev => {
+          return prev.map(msg => {
+            if (msg.id === messageId && msg.isAgentMode) {
+              const currentContent = msg.content || ''
+              const streamStyle = getStreamStyle(streamName)
+              
+              // 根据流类型更新内容
+              let updatedContent = currentContent
+              const streamPrefix = `${streamStyle.icon} [${streamName.toUpperCase()}]`
+              
+              // 检查是否已经有这个流的内容
+              const streamRegex = new RegExp(`${streamStyle.icon} \\[${streamName.toUpperCase()}\\][\\s\\S]*?(?=\\n\\n|$)`, 'g')
+              
+              if (streamRegex.test(updatedContent)) {
+                // 更新existing流内容
+                updatedContent = updatedContent.replace(streamRegex, `${streamPrefix}\n${event.data}`)
+              } else {
+                // 添加新流内容
+                updatedContent = updatedContent ? `${updatedContent}\n\n${streamPrefix}\n${event.data}` : `${streamPrefix}\n${event.data}`
+              }
+              
+              return {
+                ...msg,
+                content: updatedContent,
+                streamType: streamName
+              }
+            }
+            return msg
+          })
+        })
+      }
+    } catch (error) {
+      console.error(`❌ 流 ${streamName} 监听出错:`, error)
+    } finally {
+      activeStreamsRef.current.delete(streamKey)
+      console.log(`📡 流 ${streamName} 监听结束`)
+    }
+  }
 
   // 自动滚动到底部
   const scrollToBottom = () => {
@@ -54,6 +175,12 @@ const InteractionPanel: React.FC = () => {
   const sendMessage = async (value: string, isRetry: boolean = false) => {
     if (!value.trim() || isLoading) return
 
+    // Agent模式下检查初始化状态
+    if (useAgentMode && !agentInitialized) {
+      message.warning('Agent系统尚未初始化完成，请稍后再试')
+      return
+    }
+
     let userMessage: Message | null = null
 
     // 如果不是重试，添加用户消息
@@ -63,6 +190,7 @@ const InteractionPanel: React.FC = () => {
         content: value,
         isUser: true,
         timestamp: new Date(),
+        isAgentMode: useAgentMode
       }
       setMessages(prev => [...prev, userMessage!])
     }
@@ -70,6 +198,101 @@ const InteractionPanel: React.FC = () => {
     setIsLoading(true)
     setInputValue('')
 
+    if (useAgentMode) {
+      // Agent模式：调用后台Agent系统
+      await handleAgentQuery(value)
+    } else {
+      // 原有的LLM模式
+      await handleLLMChat(value, isRetry)
+    }
+  }
+
+  const handleAgentQuery = async (query: string) => {
+    try {
+      console.log('🚀 发送查询到Agent系统:', query)
+      
+      // 创建Agent响应消息
+      const agentMessageId = Date.now() + 1
+      const initialAgentMessage: Message = {
+        id: agentMessageId,
+        content: '🤖 Agent系统正在处理您的请求...\n\n',
+        isUser: false,
+        timestamp: new Date(),
+        isStreaming: true,
+        isAgentMode: true
+      }
+      setMessages(prev => [...prev, initialAgentMessage])
+
+      // 发送查询请求
+      const streamResponse = await agentService.queryAgentSystem(query)
+      console.log('📡 获得流响应:', streamResponse)
+      
+      // 更新消息显示流信息
+      setMessages(prev => prev.map(msg => 
+        msg.id === agentMessageId 
+          ? { 
+              ...msg, 
+              content: `🤖 Agent系统正在处理您的请求...\n\n📡 获得流ID: ${streamResponse.id}\n🔄 可用流: ${streamResponse.streams.join(', ')}\n\n`
+            }
+          : msg
+      ))
+
+      // 开始监听所有可用的流
+      const streamPromises = streamResponse.streams.map(streamName => 
+        listenToStream(streamResponse.id, streamName as StreamType, agentMessageId)
+      )
+
+      // 等待所有流完成或开始监听Agent状态
+      Promise.all(streamPromises).then(() => {
+        console.log('📡 所有流监听已开始')
+      })
+
+      // 开始检查Agent状态
+      const checkStatus = async () => {
+        try {
+          while (true) {
+            const status = await agentService.checkAgentStatus()
+            if (status.finished) {
+              console.log('✅ Agent任务执行完成')
+              // 更新消息状态
+              setMessages(prev => prev.map(msg => 
+                msg.id === agentMessageId 
+                  ? { ...msg, isStreaming: false }
+                  : msg
+              ))
+              break
+            }
+            await new Promise(resolve => setTimeout(resolve, 1000))
+          }
+        } catch (error) {
+          console.error('❌ 检查Agent状态出错:', error)
+        }
+      }
+
+      // 异步检查状态
+      checkStatus()
+
+    } catch (error) {
+      console.error('❌ Agent查询错误:', error)
+      message.error(`Agent查询失败: ${error instanceof Error ? error.message : '未知错误'}`)
+      
+      // 显示错误消息
+      const errorMessage: Message = {
+        id: Date.now() + 2,
+        content: `❌ Agent查询失败: ${error instanceof Error ? error.message : '未知错误'}`,
+        isUser: false,
+        timestamp: new Date(),
+        hasError: true,
+        canRetry: true,
+        isAgentMode: true
+      }
+      setMessages(prev => [...prev, errorMessage])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleLLMChat = async (value: string, isRetry: boolean) => {
     // 更新聊天历史
     let updatedHistory = chatHistory
     if (!isRetry) {
@@ -86,11 +309,11 @@ const InteractionPanel: React.FC = () => {
     const initialAssistantMessage: Message = {
       id: assistantMessageId,
       content: '',
-      thinking: isThinkingModel ? '' : undefined, // thinking模型初始化为空字符串，等待真实内容
+      thinking: isThinkingModel ? '' : undefined,
       isUser: false,
       timestamp: new Date(),
       isStreaming: true,
-      hasThinking: isThinkingModel, // 标记这条消息应该显示thinking框
+      hasThinking: isThinkingModel,
     }
 
     setMessages(prev => [...prev, initialAssistantMessage])
@@ -111,9 +334,6 @@ const InteractionPanel: React.FC = () => {
         finalContent = response.content
         finalThinking = response.thinking || ''
 
-        // 可选：保留关键调试信息
-        // console.log('前端收到流式响应:', response)
-
         // 更新消息内容
         setMessages(prev => {
           const updatedMessages = prev.map(msg => 
@@ -123,18 +343,14 @@ const InteractionPanel: React.FC = () => {
                   content: response.content, 
                   thinking: isThinkingModel ? response.thinking : undefined,
                   isStreaming: !response.done,
-                  hasThinking: isThinkingModel // 确保hasThinking字段保持
+                  hasThinking: isThinkingModel
                 }
               : msg
           )
-          // 可选：保留关键调试信息
-          // const updatedMsg = updatedMessages.find(m => m.id === assistantMessageId)
-          // console.log('消息更新后状态:', updatedMsg)
           return updatedMessages
         })
 
         if (response.done) {
-          // 流式响应完成时，确保最终的thinking内容被保存
           setMessages(prev => prev.map(msg => 
             msg.id === assistantMessageId 
               ? { 
@@ -142,7 +358,7 @@ const InteractionPanel: React.FC = () => {
                   content: finalContent, 
                   thinking: isThinkingModel ? finalThinking : undefined,
                   isStreaming: false,
-                  hasThinking: isThinkingModel // 确保hasThinking字段保持
+                  hasThinking: isThinkingModel
                 }
               : msg
           ))
@@ -158,9 +374,6 @@ const InteractionPanel: React.FC = () => {
         finalContent = syncResponse.content
         finalThinking = syncResponse.thinking || ''
 
-        console.log('同步响应结果:', syncResponse) // 调试信息
-        console.log('同步thinking内容:', finalThinking) // 调试信息
-
         setMessages(prev => prev.map(msg => 
           msg.id === assistantMessageId 
             ? { 
@@ -168,13 +381,11 @@ const InteractionPanel: React.FC = () => {
                 content: finalContent, 
                 thinking: isThinkingModel ? finalThinking : undefined,
                 isStreaming: false,
-                hasThinking: isThinkingModel // 确保hasThinking字段保持
+                hasThinking: isThinkingModel
               }
             : msg
         ))
       }
-
-      // 最终更新消息（这里已经在上面的同步响应处理中完成了）
 
       // 更新聊天历史
       if (!isRetry) {
@@ -185,7 +396,6 @@ const InteractionPanel: React.FC = () => {
     } catch (error) {
       console.error('聊天错误:', error)
       
-      // 显示错误消息
       const errorContent = `抱歉，发生了错误：${error instanceof Error ? error.message : '未知错误'}`
       
       setMessages(prev => prev.map(msg => 
@@ -196,7 +406,7 @@ const InteractionPanel: React.FC = () => {
               isStreaming: false,
               hasError: true,
               canRetry: true,
-              hasThinking: isThinkingModel // 即使出错也保持thinking框显示状态
+              hasThinking: isThinkingModel
             }
           : msg
       ))
@@ -215,30 +425,33 @@ const InteractionPanel: React.FC = () => {
     sendMessage(originalMessage, true)
   }
 
+  const handleAgentModeChange = (checked: boolean) => {
+    setUseAgentMode(checked)
+    if (!checked) {
+      // 关闭Agent模式时清理状态
+      setAgentInitialized(false)
+      setAgentId(null)
+      agentService.resetAgentId()
+      activeStreamsRef.current.clear()
+    }
+  }
+
   const renderThinkingBox = (thinking: string | undefined, isStreaming?: boolean, hasThinkingContent?: boolean) => {
     const llmService = llmServiceRef.current
     const isThinkingModel = llmService?.isThinkingModel() || false
     
-    // 只有thinking模型才显示thinking框
     if (!isThinkingModel) return null
-    
-    // 如果不需要显示thinking框，直接返回null
     if (!hasThinkingContent) return null
     
-    // 决定显示的内容
     let displayContent = ''
     
     if (thinking && thinking.trim()) {
-      // 有实际的thinking内容
       displayContent = thinking
     } else if (isStreaming) {
-      // 正在流式响应中
       displayContent = '正在思考中...'
     } else if (hasThinkingContent) {
-      // 流式响应完成但没有thinking内容
       displayContent = '思考过程已完成'
     } else {
-      // 不应该显示thinking框
       displayContent = ''
     }
 
@@ -295,21 +508,29 @@ const InteractionPanel: React.FC = () => {
   }
 
   const renderMessage = (message: Message) => {
+    const isAgentMessage = message.isAgentMode && !message.isUser
+    
     return (
       <List.Item key={message.id} style={{ padding: '12px 0', border: 'none' }}>
         <List.Item.Meta
           avatar={
             <Avatar 
-              icon={message.isUser ? <UserOutlined /> : <RobotOutlined />}
+              icon={message.isUser ? <UserOutlined /> : (isAgentMessage ? <ApiOutlined /> : <RobotOutlined />)}
               style={{ 
-                backgroundColor: message.hasError ? '#ff4d4f' : (message.isUser ? '#4a4a4a' : '#6c757d')
+                backgroundColor: message.hasError ? '#ff4d4f' : (
+                  message.isUser ? '#4a4a4a' : (isAgentMessage ? '#722ed1' : '#6c757d')
+                )
               }}
             />
           }
           title={
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Text strong style={{ color: message.hasError ? '#ff4d4f' : (message.isUser ? '#4a4a4a' : '#6c757d') }}>
-                {message.isUser ? '您' : 'AI助手'}
+              <Text strong style={{ 
+                color: message.hasError ? '#ff4d4f' : (
+                  message.isUser ? '#4a4a4a' : (isAgentMessage ? '#722ed1' : '#6c757d')
+                ) 
+              }}>
+                {message.isUser ? '您' : (isAgentMessage ? 'Agent系统' : 'AI助手')}
               </Text>
               {message.isStreaming && (
                 <Spin size="small" />
@@ -320,7 +541,6 @@ const InteractionPanel: React.FC = () => {
                   size="small" 
                   icon={<ReloadOutlined />}
                   onClick={() => {
-                    // 找到对应的用户消息
                     const userMessages = messages.filter(m => m.isUser)
                     const lastUserMessage = userMessages[userMessages.length - 1]
                     if (lastUserMessage) {
@@ -335,8 +555,8 @@ const InteractionPanel: React.FC = () => {
           }
           description={
             <div>
-              {/* Thinking 部分 */}
-              {renderThinkingBox(message.thinking, message.isStreaming, message.hasThinking)}
+              {/* Thinking 部分 (仅LLM模式) */}
+              {!isAgentMessage && renderThinkingBox(message.thinking, message.isStreaming, message.hasThinking)}
               
               {/* 主要内容 */}
               <div style={{ marginTop: '0' }}>
@@ -345,7 +565,11 @@ const InteractionPanel: React.FC = () => {
                     margin: 0, 
                     whiteSpace: 'pre-wrap',
                     wordBreak: 'break-word',
-                    color: message.hasError ? '#ff4d4f' : 'inherit'
+                    color: message.hasError ? '#ff4d4f' : 'inherit',
+                    backgroundColor: isAgentMessage ? '#f9f0ff' : 'transparent',
+                    padding: isAgentMessage ? '8px' : '0',
+                    borderRadius: isAgentMessage ? '6px' : '0',
+                    border: isAgentMessage ? '1px solid #d3adf7' : 'none'
                   }}
                 >
                   {message.content}
@@ -375,13 +599,36 @@ const InteractionPanel: React.FC = () => {
         智能交互
       </Title>
 
-      {/* 当前模型信息 */}
-      <Alert
-        message={`当前模型: ${llmConfig.llm_model_id}`}
-        type="info"
-        showIcon
-        style={{ marginBottom: '12px', fontSize: '12px' }}
-      />
+      {/* 模式切换和状态信息 */}
+      <Card size="small" style={{ marginBottom: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <Text strong>模式:</Text>
+            <Switch
+              checked={useAgentMode}
+              onChange={handleAgentModeChange}
+              checkedChildren="Agent"
+              unCheckedChildren="LLM"
+              loading={isInitializingAgent}
+            />
+          </div>
+          <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
+            {useAgentMode ? (
+              agentInitialized ? (
+                <Text type="success">
+                  <ApiOutlined /> Agent已就绪 (ID: {agentId?.substring(0, 8)}...)
+                </Text>
+              ) : (
+                <Text type="warning">
+                  <LoadingOutlined /> Agent初始化中...
+                </Text>
+              )
+            ) : (
+              <Text>当前模型: {llmConfig.llm_model_id}</Text>
+            )}
+          </div>
+        </div>
+      </Card>
 
       {/* 聊天记录区域 */}
       <div style={{ 
@@ -404,13 +651,19 @@ const InteractionPanel: React.FC = () => {
 
       {/* 输入区域 */}
       <Search
-        placeholder={isLoading ? "AI正在思考中..." : "输入您的消息..."}
+        placeholder={
+          isLoading ? (
+            useAgentMode ? "Agent系统处理中..." : "AI正在思考中..."
+          ) : (
+            useAgentMode ? "输入指令给Agent系统..." : "输入您的消息..."
+          )
+        }
         enterButton={<SendOutlined />}
         size="large"
         value={inputValue}
         onChange={(e) => setInputValue(e.target.value)}
         onSearch={handleSendMessage}
-        disabled={isLoading}
+        disabled={isLoading || (useAgentMode && !agentInitialized)}
         style={{ width: '100%' }}
       />
     </div>

@@ -40,39 +40,39 @@ cd /home/tutu/server/life-agent-web
 echo "📌 使用Node.js版本: $(node --version)"
 echo "📌 使用npm版本: $(npm --version)"
 
-# 1. 启动Agent Mock Server (端口5112)
-echo "🤖 启动Agent Mock Server..."
-# 检查端口5112是否被占用
-if sudo lsof -i:5112 > /dev/null 2>&1; then
-  echo "🛑 停止已有的5112端口应用..."
-  sudo pkill -f "agent_mock_server.py" || true
-  sudo lsof -ti:5112 | xargs sudo kill -9 || true
-  sleep 2
-fi
+# 1. 启动Agent Mock Server (端口5112) - 已注释掉
+# echo "🤖 启动Agent Mock Server..."
+# # 检查端口5112是否被占用
+# if sudo lsof -i:5112 > /dev/null 2>&1; then
+#   echo "🛑 停止已有的5112端口应用..."
+#   sudo pkill -f "agent_mock_server.py" || true
+#   sudo lsof -ti:5112 | xargs sudo kill -9 || true
+#   sleep 2
+# fi
 
-# 启动Mock Server
-if [ -f "public/plugins/agent_listener3/agent_mock_server.py" ]; then
-  echo "🚀 在后台启动Agent Mock Server (端口5112)..."
-  cd public/plugins/agent_listener3
-  # 激活conda环境
-  source /home/tutu/anaconda3/etc/profile.d/conda.sh
-  conda activate client
-  # 检查websockets库是否安装
-  python -c "import websockets" 2>/dev/null || pip install websockets
-  # 在后台启动
-  nohup python agent_mock_server.py > /tmp/agent_mock_server.log 2>&1 &
-  cd ../../..
-  sleep 1
-  # 检查是否启动成功
-  if sudo lsof -i:5112 > /dev/null 2>&1; then
-    echo "✅ Agent Mock Server 已启动 (端口5112)"
-    echo "📄 日志文件: /tmp/agent_mock_server.log"
-  else
-    echo "❌ Agent Mock Server 启动失败"
-  fi
-else
-  echo "⚠️ 警告: agent_mock_server.py 文件未找到，跳过Mock Server启动"
-fi
+# # 启动Mock Server
+# if [ -f "public/plugins/agent_listener3/agent_mock_server.py" ]; then
+#   echo "🚀 在后台启动Agent Mock Server (端口5112)..."
+#   cd public/plugins/agent_listener3
+#   # 激活conda环境
+#   source /home/tutu/anaconda3/etc/profile.d/conda.sh
+#   conda activate client
+#   # 检查websockets库是否安装
+#   python -c "import websockets" 2>/dev/null || pip install websockets
+#   # 在后台启动
+#   nohup python agent_mock_server.py > /tmp/agent_mock_server.log 2>&1 &
+#   cd ../../..
+#   sleep 1
+#   # 检查是否启动成功
+#   if sudo lsof -i:5112 > /dev/null 2>&1; then
+#     echo "✅ Agent Mock Server 已启动 (端口5112)"
+#     echo "📄 日志文件: /tmp/agent_mock_server.log"
+#   else
+#     echo "❌ Agent Mock Server 启动失败"
+#   fi
+# else
+#   echo "⚠️ 警告: agent_mock_server.py 文件未找到，跳过Mock Server启动"
+# fi
 
 # 2. 重启 Collabora CODE docker服务 (5102端口)
 echo "🔄 重启 Collabora CODE 服务器..."

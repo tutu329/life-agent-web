@@ -19,10 +19,18 @@ const EditorPanel: React.FC = () => {
   // Collabora CODE 配置
   const collaboraUrl = 'https://powerai.cc:5102'
   const wopiServerUrl = 'https://powerai.cc:5103'
-  const wsUrl = 'wss://powerai.cc:5112'  // WebSocket服务器地址 (使用WSS安全连接)
+  // 注释掉WebSocket连接，现在使用Agent系统的流式接口
+  // const wsUrl = 'wss://powerai.cc:5112'  // WebSocket服务器地址 (使用WSS安全连接)
   
-  // 初始化WebSocket连接
+  // 初始化WebSocket连接 - 暂时禁用，等待后台Agent系统支持控制EditorPanel
   const initWebSocket = () => {
+    console.log('🚫 WebSocket连接已禁用，等待后台Agent系统支持')
+    // 暂时不连接WebSocket，因为：
+    // 1. Mock server已关闭
+    // 2. 后台Agent系统暂时只测试Folder_Tool，不控制EditorPanel
+    // 3. 后续需要时再启用：InteractionPanel → 后台Agent → WebSocket → EditorPanel
+    
+    /* 原WebSocket代码已注释
     try {
       const ws = new WebSocket(wsUrl)
       wsRef.current = ws
@@ -67,6 +75,7 @@ const EditorPanel: React.FC = () => {
       console.error('❌ WebSocket初始化失败:', error)
       messageApi.error('无法连接到Agent服务')
     }
+    */
   }
   
   // 向Collabora CODE插入文本 - 使用官方API
@@ -150,10 +159,10 @@ const EditorPanel: React.FC = () => {
     // 注意：必须发送到正确的origin
     iframeRef.current.contentWindow?.postMessage(readyMessage, 'https://powerai.cc:5102')
     
-    // 也尝试发送到WOPI服务器的origin
-    setTimeout(() => {
-      iframeRef.current?.contentWindow?.postMessage(readyMessage, 'https://powerai.cc:5103')
-    }, 100)
+    // 注释掉错误的WOPI服务器postMessage，因为iframe的origin是5102不是5103
+    // setTimeout(() => {
+    //   iframeRef.current?.contentWindow?.postMessage(readyMessage, 'https://powerai.cc:5103')
+    // }, 100)
     
     // 最后尝试通配符（按官方文档的一些示例）
     setTimeout(() => {
@@ -161,9 +170,11 @@ const EditorPanel: React.FC = () => {
     }, 200)
   }
   
-  // 组件挂载时初始化WebSocket
+  // 组件挂载时初始化WebSocket - 暂时禁用
   useEffect(() => {
-    initWebSocket()
+    // 暂时不初始化WebSocket，等待后台Agent系统支持
+    // initWebSocket()
+    console.log('📝 EditorPanel已加载，WebSocket功能暂时禁用')
     
     // 监听来自Collabora CODE的消息
     const handleMessage = (event: MessageEvent) => {
@@ -305,7 +316,7 @@ const EditorPanel: React.FC = () => {
               color: wsConnected ? '#52c41a' : '#ff4d4f', 
               marginRight: '8px' 
             }} />
-            Agent服务状态: {wsConnected ? '已连接' : '未连接'} | 
+            Agent服务状态: 已禁用 (等待后台Agent系统支持) | 
             已接收指令: {receivedMessages.length} 条
             {receivedMessages.length > 0 && (
               <span style={{ marginLeft: '16px', color: '#666' }}>
