@@ -21,8 +21,8 @@ const EditorPanel: React.FC = () => {
     const accessToken = 'demo_token'
     const wopiSrc = `${wopiServerUrl}/wopi/files/${fileId}`
     
-    // 使用 WOPI 协议
-    const url = `${collaboraUrl}/loleaflet/dist/loleaflet.html?` +
+    // 使用新版本 Collabora CODE 的正确路径
+    const url = `${collaboraUrl}/browser/dist/cool.html?` +
       `WOPISrc=${encodeURIComponent(wopiSrc)}&` +
       `access_token=${accessToken}`
     

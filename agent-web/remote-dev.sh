@@ -12,7 +12,7 @@ REMOTE_USER="tutu"
 REMOTE_PATH="/home/tutu/server/life-agent-web"
 
 echo "🚀 启动远程开发环境..."
-echo "🌐 服务器地址: http://powerai.cc:5101"
+echo "🌐 服务器地址: https://powerai.cc:5101"
 echo "📄 Collabora CODE 地址: https://powerai.cc:5102"
 echo "🔗 WOPI 服务器地址: https://powerai.cc:5103"
 echo "⚡ 使用热重载，代码更改会自动生效"
@@ -157,10 +157,11 @@ if [ ! -d "node_modules" ] || ! npm list &> /dev/null; then
 fi
 
 echo "🛠️ 启动开发服务器..."
-echo "访问地址: http://powerai.cc:5101"
+echo "访问地址: https://powerai.cc:5101"
 echo "Collabora CODE: https://powerai.cc:5102"
 echo "WOPI 服务器: https://powerai.cc:5103"
 
-# 启动开发服务器
+# 启动开发服务器 (使用HTTPS)
+export VITE_HTTPS=true
 npm run dev -- --port 5101 --host 0.0.0.0
 EOF 

@@ -25,7 +25,7 @@ export class WOPIService {
   private baseUrl: string
   private documents: Map<string, any> = new Map()
 
-  constructor(baseUrl: string = 'http://powerai.cc:5101') {
+  constructor(baseUrl: string = 'https://powerai.cc:5101') {
     this.baseUrl = baseUrl
   }
 
@@ -66,14 +66,9 @@ export class WOPIService {
         return { success: false, error: 'Invalid access token' }
       }
 
-      // 获取文件内容
-      const response = await fetch(`${this.baseUrl}/empty.docx`)
-      if (!response.ok) {
-        throw new Error(`Failed to fetch file: ${response.status}`)
-      }
-
-      const arrayBuffer = await response.arrayBuffer()
-      return { success: true, data: arrayBuffer }
+      // WOPI服务器应该直接从文件系统读取文件，而不是通过HTTP请求
+      // 这个方法在WOPI服务器中不会被调用，文件读取在wopiServer.ts中直接处理
+      return { success: true, data: null }
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
     }
