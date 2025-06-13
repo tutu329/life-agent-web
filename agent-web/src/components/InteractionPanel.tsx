@@ -20,6 +20,14 @@ interface Message {
   hasThinking?: boolean
   streamType?: StreamType
   isAgentMode?: boolean
+  // Agent模式下的流数据存储
+  streamData?: {
+    output: string
+    thinking: string
+    log: string
+    tool_rtn_data: string
+    final_answer: string
+  }
 }
 
 
@@ -127,27 +135,24 @@ const InteractionPanel: React.FC = () => {
         setMessages(prev => {
           return prev.map(msg => {
             if (msg.id === messageId && msg.isAgentMode) {
-              const currentContent = msg.content || ''
-              const streamStyle = getStreamStyle(streamName)
+              // 初始化streamData
+              const currentStreamData = msg.streamData || {
+                output: '',
+                thinking: '',
+                log: '',
+                tool_rtn_data: '',
+                final_answer: ''
+              }
               
-              // 根据流类型更新内容
-              let updatedContent = currentContent
-              const streamPrefix = `${streamStyle.icon} [${streamName.toUpperCase()}]`
-              
-              // 检查是否已经有这个流的内容
-              const streamRegex = new RegExp(`${streamStyle.icon} \\[${streamName.toUpperCase()}\\][\\s\\S]*?(?=\\n\\n|$)`, 'g')
-              
-              if (streamRegex.test(updatedContent)) {
-                // 更新existing流内容
-                updatedContent = updatedContent.replace(streamRegex, `${streamPrefix}\n${event.data}`)
-              } else {
-                // 添加新流内容
-                updatedContent = updatedContent ? `${updatedContent}\n\n${streamPrefix}\n${event.data}` : `${streamPrefix}\n${event.data}`
+              // 累积叠加流数据
+              const updatedStreamData = {
+                ...currentStreamData,
+                [streamName]: currentStreamData[streamName] + event.data
               }
               
               return {
                 ...msg,
-                content: updatedContent,
+                streamData: updatedStreamData,
                 streamType: streamName
               }
             }
@@ -232,7 +237,7 @@ const InteractionPanel: React.FC = () => {
         msg.id === agentMessageId 
           ? { 
               ...msg, 
-              content: `🤖 Agent系统正在处理您的请求...\n\n📡 获得流ID: ${streamResponse.id}\n🔄 可用流: ${streamResponse.streams.join(', ')}\n\n`
+              content: `🤖 Agent系统正在处理您的请求...\n\n📡 获得流ID: ${streamResponse.id}\n🔄 可用流: ${streamResponse.streams.join(', ')}`
             }
           : msg
       ))
@@ -507,6 +512,90 @@ const InteractionPanel: React.FC = () => {
     )
   }
 
+  const renderAgentStreamsBox = (streamData: Message['streamData'], isStreaming?: boolean) => {
+    if (!streamData) return null
+    
+    // 检查是否有除了final_answer之外的流数据
+    const hasStreamData = streamData.output || streamData.thinking || streamData.log || streamData.tool_rtn_data
+    if (!hasStreamData) return null
+    
+    let displayContent = ''
+    
+    if (streamData.output) {
+      const outputStyle = getStreamStyle('output')
+      displayContent += `${outputStyle.icon} [OUTPUT]\n${streamData.output}\n\n`
+    }
+    if (streamData.thinking) {
+      const thinkingStyle = getStreamStyle('thinking')
+      displayContent += `${thinkingStyle.icon} [THINKING]\n${streamData.thinking}\n\n`
+    }
+    if (streamData.log) {
+      const logStyle = getStreamStyle('log')
+      displayContent += `${logStyle.icon} [LOG]\n${streamData.log}\n\n`
+    }
+    if (streamData.tool_rtn_data) {
+      const toolStyle = getStreamStyle('tool_rtn_data')
+      displayContent += `${toolStyle.icon} [TOOL_RTN_DATA]\n${streamData.tool_rtn_data}\n\n`
+    }
+    
+    displayContent = displayContent.trim()
+    
+    if (!displayContent && isStreaming) {
+      displayContent = 'Agent处理中...'
+    }
+
+    const agentStreamItems = [
+      {
+        key: '1',
+        label: (
+          <span style={{ fontSize: '12px', color: '#722ed1' }}>
+            Agent流程详情
+          </span>
+        ),
+        children: (
+          <Paragraph 
+            style={{ 
+              margin: 0, 
+              fontSize: '12px', 
+              color: '#586069',
+              whiteSpace: 'pre-wrap',
+              maxHeight: '300px',
+              overflow: 'auto',
+              backgroundColor: '#f9f0ff',
+              padding: '8px',
+              borderRadius: '4px',
+              border: '1px solid #d3adf7'
+            }}
+          >
+            {displayContent}
+          </Paragraph>
+        ),
+      },
+    ]
+
+    return (
+      <div style={{ marginTop: '8px' }}>
+        <Collapse 
+          items={agentStreamItems}
+          size="small"
+          ghost
+          expandIcon={({ isActive }) => (
+            <CaretRightOutlined 
+              rotate={isActive ? 90 : 0} 
+              style={{ fontSize: '10px', color: '#722ed1' }}
+            />
+          )}
+          style={{
+            backgroundColor: '#f9f0ff',
+            border: '1px solid #d3adf7',
+            borderRadius: '6px',
+          }}
+          className="agent-streams-collapse"
+        />
+      </div>
+    )
+  }
+
   const renderMessage = (message: Message) => {
     const isAgentMessage = message.isAgentMode && !message.isUser
     
@@ -558,22 +647,62 @@ const InteractionPanel: React.FC = () => {
               {/* Thinking 部分 (仅LLM模式) */}
               {!isAgentMessage && renderThinkingBox(message.thinking, message.isStreaming, message.hasThinking)}
               
+              {/* Agent流程详情 (可折叠的紫色框) */}
+              {isAgentMessage && renderAgentStreamsBox(message.streamData, message.isStreaming)}
+              
               {/* 主要内容 */}
-              <div style={{ marginTop: '0' }}>
-                <Paragraph 
-                  style={{ 
-                    margin: 0, 
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                    color: message.hasError ? '#ff4d4f' : 'inherit',
-                    backgroundColor: isAgentMessage ? '#f9f0ff' : 'transparent',
-                    padding: isAgentMessage ? '8px' : '0',
-                    borderRadius: isAgentMessage ? '6px' : '0',
-                    border: isAgentMessage ? '1px solid #d3adf7' : 'none'
-                  }}
-                >
-                  {message.content}
-                </Paragraph>
+              <div style={{ marginTop: '8px' }}>
+                {isAgentMessage ? (
+                  // Agent模式：显示初始状态信息和final_answer
+                  <div>
+                    {/* 初始状态信息 */}
+                    {message.content && (
+                      <Paragraph 
+                        style={{ 
+                          margin: '0 0 12px 0', 
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word',
+                          color: message.hasError ? '#ff4d4f' : '#666',
+                          fontSize: '13px'
+                        }}
+                      >
+                        {/* 只显示状态信息，过滤掉流数据 */}
+                        {message.content.split('\n\n')[0]}
+                      </Paragraph>
+                    )}
+                    
+                    {/* Final Answer 单独显示 */}
+                    {message.streamData?.final_answer && (
+                      <Paragraph 
+                        style={{ 
+                          margin: 0, 
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word',
+                          color: '#000',
+                          backgroundColor: '#fff',
+                          padding: '12px',
+                          borderRadius: '6px',
+                          border: '2px solid #52c41a',
+                          borderLeft: '4px solid #52c41a'
+                        }}
+                      >
+                        {message.streamData.final_answer}
+                      </Paragraph>
+                    )}
+                  </div>
+                ) : (
+                  // LLM模式：正常显示
+                  <Paragraph 
+                    style={{ 
+                      margin: 0, 
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      color: message.hasError ? '#ff4d4f' : 'inherit'
+                    }}
+                  >
+                    {message.content}
+                  </Paragraph>
+                )}
               </div>
 
               {/* 时间戳 */}
