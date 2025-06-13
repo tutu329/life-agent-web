@@ -12,7 +12,7 @@ agent-web项目注意事项：
 1）agent-web页面部署在powerai.cc:5101
 2）我部署的collabora CODE(docker方式部署在powerai.cc:5102，docker容器是collabora-code-5102)。
 3）remote-dev.sh用于同步文件到powerai.cc，并重启agent-web页面、collabora-code-5102等
-4）collabora-code-5102和后台进行web socket之类的通信的端口用5112（注意，CODE容器启动时，domain参数不要做限制，另外浏览器必须https://powerai.cc:5102这样才能看到返回的'ok'）
+4）collabora-code-5102和后台进行web socket之类的通信的端口用5112（注意，CODE容器启动时，domain参数不要做限制，另外浏览器必须https://powerai.cc:5102这样才能看到返回的'ok'；另外CODE的5102访问5101的empty.docx有跨域CORS问题，要配置好，最好CODE采用WOPI协议访问docx）
 5）powerai.cc上如果要调用python要这样：
 source /home/tutu/anaconda3/etc/profile.d/conda.sh
 conda activate client
