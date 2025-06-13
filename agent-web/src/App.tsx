@@ -173,7 +173,7 @@ function App() {
       setCurrentLLMConfig(DEFAULT_MODEL_PRESETS['deepseek-reasoner'])
     }
     
-    message.success('模型配置已删除')
+    messageApi.success('模型配置已删除')
   }
 
   // 保存自定义模型配置
@@ -189,9 +189,12 @@ function App() {
       saveCustomModels(newCustomModels)
       setIsAddModelModalOpen(false)
       
-      message.success(editingModelKey ? '模型配置已更新' : '模型配置已添加')
+      messageApi.success(editingModelKey ? '模型配置已更新' : '模型配置已添加')
     })
   }
+
+  // 配置 message 组件
+  const [messageApi, contextHolder] = message.useMessage()
 
   return (
     <ConfigProvider
@@ -212,6 +215,7 @@ function App() {
         },
       }}
     >
+      {contextHolder}
       <LLMConfigContext.Provider value={currentLLMConfig}>
         <Layout style={{ height: '100vh' }}>
           {/* 顶部 Header */}

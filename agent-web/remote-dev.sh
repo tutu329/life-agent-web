@@ -13,6 +13,8 @@ REMOTE_PATH="/home/tutu/server/life-agent-web"
 
 echo "🚀 启动远程开发环境..."
 echo "🌐 服务器地址: http://powerai.cc:5101"
+echo "📄 Collabora CODE 地址: https://powerai.cc:5102"
+echo "🔗 WOPI 服务器地址: https://powerai.cc:5103"
 echo "⚡ 使用热重载，代码更改会自动生效"
 echo "🛑 按 Ctrl+C 停止服务器"
 echo ""
@@ -38,16 +40,7 @@ cd /home/tutu/server/life-agent-web
 echo "📌 使用Node.js版本: $(node --version)"
 echo "📌 使用npm版本: $(npm --version)"
 
-# 1. 部署插件到OnlyOffice容器
-echo "🔌 部署插件到OnlyOffice服务器..."
-if [ -f "deploy-plugins.sh" ]; then
-  chmod +x deploy-plugins.sh
-  ./deploy-plugins.sh
-else
-  echo "⚠️ 警告: deploy-plugins.sh 文件未找到，跳过插件部署"
-fi
-
-# 1.5. 启动Agent Mock Server (端口5112)
+# 1. 启动Agent Mock Server (端口5112)
 echo "🤖 启动Agent Mock Server..."
 # 检查端口5112是否被占用
 if sudo lsof -i:5112 > /dev/null 2>&1; then
@@ -81,13 +74,70 @@ else
   echo "⚠️ 警告: agent_mock_server.py 文件未找到，跳过Mock Server启动"
 fi
 
-# 2. 重启only-office-server docker服务 (5102端口)
-echo "🔄 重启OnlyOffice服务器..."
-sudo docker stop onlyoffice-server-5102 || true
-sudo docker start onlyoffice-server-5102
-echo "✅ OnlyOffice服务器已重启"
+# 2. 重启 Collabora CODE docker服务 (5102端口)
+echo "🔄 重启 Collabora CODE 服务器..."
+sudo docker stop collabora-code-5102 || true
+sudo docker rm collabora-code-5102 || true
 
-# 3. kill掉已有的5101端口应用
+# 修复SSL证书权限 (确保容器内的cool用户和tutu用户都可以读取)
+echo "🔧 修复SSL证书权限..."
+# 创建ssl-cert组（如果不存在）
+sudo groupadd ssl-cert 2>/dev/null || true
+# 将tutu用户添加到ssl-cert组
+sudo usermod -a -G ssl-cert tutu 2>/dev/null || true
+# 设置证书文件的组为ssl-cert，并设置适当权限
+sudo chown 1001:ssl-cert /home/tutu/ssl/powerai.key /home/tutu/ssl/powerai_public.crt /home/tutu/ssl/powerai_chain.crt
+sudo chmod 640 /home/tutu/ssl/powerai.key  # 私钥：所有者和组可读
+sudo chmod 644 /home/tutu/ssl/powerai_public.crt /home/tutu/ssl/powerai_chain.crt  # 公钥：所有人可读
+
+# 启动 Collabora CODE 容器，使用 SSL 证书
+echo "🚀 启动 Collabora CODE 服务器 (使用 SSL 证书)..."
+sudo docker run -d \
+  --name collabora-code-5102 \
+  -p 5102:9980 \
+  -e "domain=.*" \
+  -e "DONT_GEN_SSL_CERT=1" \
+  -e "extra_params=--o:ssl.enable=true --o:ssl.termination=false --o:ssl.cert_file_path=/opt/ssl/powerai_public.crt --o:ssl.key_file_path=/opt/ssl/powerai.key --o:ssl.ca_file_path=/opt/ssl/powerai_chain.crt" \
+  -v /home/tutu/ssl:/opt/ssl:ro \
+  --restart unless-stopped \
+  collabora/code:latest
+
+echo "✅ Collabora CODE 服务器已重启 (使用 powerai.cc SSL 证书)"
+
+# 3. 启动 WOPI 服务器 (5103端口)
+echo "🔗 启动 WOPI 服务器..."
+# 检查端口5103是否被占用
+if sudo lsof -i:5103 > /dev/null 2>&1; then
+  echo "🛑 停止已有的5103端口应用..."
+  sudo lsof -ti:5103 | xargs sudo kill -9 || true
+  sleep 2
+fi
+
+# 安装依赖（如果需要）
+if [ ! -d "node_modules" ] || ! npm list express &> /dev/null; then
+  echo "📦 安装WOPI服务器依赖..."
+  npm install express cors @types/express @types/cors @types/node tsx
+fi
+
+# 在后台启动WOPI服务器
+echo "🚀 在后台启动WOPI服务器 (端口5103)..."
+# 确保使用Node.js 18并使用ssl-cert组权限
+source ~/.nvm/nvm.sh
+nvm use 18
+nohup sg ssl-cert -c "npm run wopi-server" > /tmp/wopi_server.log 2>&1 &
+sleep 2
+
+# 检查是否启动成功
+if sudo lsof -i:5103 > /dev/null 2>&1; then
+  echo "✅ WOPI 服务器已启动 (端口5103)"
+  echo "📄 日志文件: /tmp/wopi_server.log"
+  echo "🔗 健康检查: https://powerai.cc:5103/health"
+else
+  echo "❌ WOPI 服务器启动失败"
+  echo "📄 查看日志: tail -f /tmp/wopi_server.log"
+fi
+
+# 4. kill掉已有的5101端口应用
 echo "🛑 停止已有的5101端口应用..."
 sudo pkill -f "port.*5101" || true
 sudo lsof -ti:5101 | xargs sudo kill -9 || true
@@ -108,6 +158,8 @@ fi
 
 echo "🛠️ 启动开发服务器..."
 echo "访问地址: http://powerai.cc:5101"
+echo "Collabora CODE: https://powerai.cc:5102"
+echo "WOPI 服务器: https://powerai.cc:5103"
 
 # 启动开发服务器
 npm run dev -- --port 5101 --host 0.0.0.0
