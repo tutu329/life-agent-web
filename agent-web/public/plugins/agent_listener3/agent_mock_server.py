@@ -9,6 +9,8 @@ import asyncio
 import websockets
 import logging
 import time
+import ssl
+import os
 
 # 设置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -64,12 +66,50 @@ async def handle_client(websocket):
 async def main():
     """主函数"""
     logger.info("启动Agent Mock Server...")
-    logger.info("WebSocket服务器将在 0.0.0.0:5112 启动")
+    logger.info("WebSocket服务器将在 0.0.0.0:5112 启动 (WSS)")
     logger.info("每3秒向连接的客户端发送指令: 'tell me your name.'")
     
-    # 启动WebSocket服务器
-    server = await websockets.serve(handle_client, "0.0.0.0", 5112)
-    logger.info("WebSocket服务器启动成功！")
+    # 配置SSL上下文
+    ssl_context = None
+    try:
+        # 使用powerai.cc的SSL证书
+        cert_path = "/home/tutu/ssl/powerai_public.crt"
+        key_path = "/home/tutu/ssl/powerai.key"
+        chain_path = "/home/tutu/ssl/powerai_chain.crt"
+        
+        if os.path.exists(cert_path) and os.path.exists(key_path):
+            ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            # 加载证书和私钥
+            ssl_context.load_cert_chain(cert_path, key_path)
+            # 如果有证书链文件，加载证书链
+            if os.path.exists(chain_path):
+                ssl_context.load_verify_locations(chain_path)
+                logger.info("✅ SSL证书链加载成功")
+            logger.info("✅ SSL证书加载成功")
+            logger.info(f"   证书文件: {cert_path}")
+            logger.info(f"   私钥文件: {key_path}")
+            logger.info(f"   证书链文件: {chain_path}")
+        else:
+            logger.warning(f"⚠️ SSL证书文件不存在:")
+            logger.warning(f"   证书文件: {cert_path} (存在: {os.path.exists(cert_path)})")
+            logger.warning(f"   私钥文件: {key_path} (存在: {os.path.exists(key_path)})")
+            logger.warning(f"   证书链文件: {chain_path} (存在: {os.path.exists(chain_path)})")
+            logger.warning("   将使用不安全的WebSocket连接")
+    except Exception as e:
+        logger.error(f"❌ SSL证书加载失败: {e}")
+        logger.warning("   将使用不安全的WebSocket连接")
+    
+    # 启动WebSocket服务器 (优先使用WSS)
+    try:
+        if ssl_context:
+            server = await websockets.serve(handle_client, "0.0.0.0", 5112, ssl=ssl_context)
+            logger.info("🔒 WSS WebSocket服务器启动成功！")
+        else:
+            server = await websockets.serve(handle_client, "0.0.0.0", 5112)
+            logger.info("⚠️ WS WebSocket服务器启动成功（不安全连接）！")
+    except Exception as e:
+        logger.error(f"❌ WebSocket服务器启动失败: {e}")
+        return
     
     # 启动定期消息发送器
     sender_task = asyncio.create_task(periodic_sender())

@@ -1,12 +1,17 @@
-import React, { useState, useEffect } from 'react'
-import { Tabs, Alert, Button, message } from 'antd'
-import { BarChartOutlined, FileTextOutlined, ReloadOutlined } from '@ant-design/icons'
+import React, { useState, useEffect, useRef } from 'react'
+import { Tabs, Alert, Button, message, Badge } from 'antd'
+import { BarChartOutlined, FileTextOutlined, ReloadOutlined, WifiOutlined } from '@ant-design/icons'
 
 const EditorPanel: React.FC = () => {
   const [messageApi, contextHolder] = message.useMessage()
   const [iframeError, setIframeError] = useState(false)
   const [iframeKey, setIframeKey] = useState(0)
   const [documentReady, setDocumentReady] = useState(false)
+  const [wsConnected, setWsConnected] = useState(false)
+  const [receivedMessages, setReceivedMessages] = useState<string[]>([])
+  
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const wsRef = useRef<WebSocket | null>(null)
   
   // 生成唯一ID和key
   const uniqueId = `editor_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
@@ -14,7 +19,191 @@ const EditorPanel: React.FC = () => {
   // Collabora CODE 配置
   const collaboraUrl = 'https://powerai.cc:5102'
   const wopiServerUrl = 'https://powerai.cc:5103'
+  const wsUrl = 'wss://powerai.cc:5112'  // WebSocket服务器地址 (使用WSS安全连接)
   
+  // 初始化WebSocket连接
+  const initWebSocket = () => {
+    try {
+      const ws = new WebSocket(wsUrl)
+      wsRef.current = ws
+      
+      ws.onopen = () => {
+        console.log('🔗 WebSocket连接已建立')
+        setWsConnected(true)
+        messageApi.success('Agent服务连接成功')
+      }
+      
+      ws.onmessage = (event) => {
+        const message = event.data
+        console.log('📨 收到Agent指令:', message)
+        setReceivedMessages(prev => [...prev.slice(-9), message]) // 保留最近10条消息
+        
+        // 延迟1秒后插入文本，确保iframe完全加载
+        setTimeout(() => {
+          insertTextToDocument(message)
+        }, 1000)
+      }
+      
+      ws.onclose = (event) => {
+        console.log('🔌 WebSocket连接已关闭:', event.code, event.reason)
+        setWsConnected(false)
+        messageApi.warning('Agent服务连接断开')
+        
+        // 5秒后尝试重连
+        setTimeout(() => {
+          if (!wsRef.current || wsRef.current.readyState === WebSocket.CLOSED) {
+            console.log('🔄 尝试重新连接WebSocket...')
+            initWebSocket()
+          }
+        }, 5000)
+      }
+      
+      ws.onerror = (error) => {
+        console.error('❌ WebSocket错误:', error)
+        messageApi.error('Agent服务连接错误')
+      }
+      
+    } catch (error) {
+      console.error('❌ WebSocket初始化失败:', error)
+      messageApi.error('无法连接到Agent服务')
+    }
+  }
+  
+  // 向Collabora CODE插入文本 - 使用官方API
+  const insertTextToDocument = (text: string) => {
+    if (!iframeRef.current) {
+      console.log('⏳ iframe未准备好，暂存消息:', text)
+      return
+    }
+    
+    try {
+      const timestamp = new Date().toLocaleTimeString()
+      const insertText = `[${timestamp}] Agent指令: ${text}\n`
+      
+      console.log('📝 使用官方API插入文本:', insertText.trim())
+      
+      // 方法1: 使用官方推荐的Action_Paste（剪贴板方式）
+      const pasteMessage = {
+        MessageId: 'Action_Paste',
+        SendTime: Date.now(),
+        Values: {
+          Mimetype: 'text/plain;charset=utf-8',
+          Data: insertText
+        }
+      }
+      
+      console.log('📋 发送Action_Paste命令:', pasteMessage)
+      iframeRef.current.contentWindow?.postMessage(pasteMessage, 'https://powerai.cc:5102')
+      
+      // 方法2: 使用官方推荐的Send_UNO_Command + .uno:InsertText
+      setTimeout(() => {
+        const unoMessage = {
+          MessageId: 'Send_UNO_Command',
+          SendTime: Date.now(),
+          Values: {
+            Command: '.uno:InsertText',
+            Args: {
+              Text: {
+                type: 'string',
+                value: insertText
+              }
+            }
+          }
+        }
+        
+        console.log('🔧 发送Send_UNO_Command:', unoMessage)
+        iframeRef.current?.contentWindow?.postMessage(unoMessage, 'https://powerai.cc:5102')
+      }, 100)
+      
+      // 方法3: 尝试使用CallPythonScript（如文档所示）
+      setTimeout(() => {
+        const pythonScript = {
+          MessageId: 'CallPythonScript',
+          SendTime: Date.now(),
+          Values: {
+            ScriptName: 'InsertText.py',
+            Function: 'InsertText',
+            Args: [insertText]
+          }
+        }
+        
+        console.log('🐍 发送CallPythonScript:', pythonScript)
+        iframeRef.current?.contentWindow?.postMessage(pythonScript, 'https://powerai.cc:5102')
+      }, 200)
+      
+    } catch (error) {
+      console.error('❌ 插入文本到文档失败:', error)
+    }
+  }
+  
+  // 发送Host_PostmessageReady消息 - 官方要求的初始化消息
+  const sendHostReady = () => {
+    if (!iframeRef.current) return
+    
+    const readyMessage = {
+      MessageId: 'Host_PostmessageReady',
+      SendTime: Date.now(),
+      Values: {}
+    }
+    
+    console.log('🚀 向Collabora CODE发送Host_PostmessageReady:', readyMessage)
+    // 注意：必须发送到正确的origin
+    iframeRef.current.contentWindow?.postMessage(readyMessage, 'https://powerai.cc:5102')
+    
+    // 也尝试发送到WOPI服务器的origin
+    setTimeout(() => {
+      iframeRef.current?.contentWindow?.postMessage(readyMessage, 'https://powerai.cc:5103')
+    }, 100)
+    
+    // 最后尝试通配符（按官方文档的一些示例）
+    setTimeout(() => {
+      iframeRef.current?.contentWindow?.postMessage(readyMessage, '*')
+    }, 200)
+  }
+  
+  // 组件挂载时初始化WebSocket
+  useEffect(() => {
+    initWebSocket()
+    
+    // 监听来自Collabora CODE的消息
+    const handleMessage = (event: MessageEvent) => {
+      try {
+        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data
+        console.log('📩 收到来自Collabora CODE的消息:', data)
+        
+        // 根据消息类型处理文档状态
+        if (data.MessageId === 'Action_Load_Resp') {
+          console.log('📄 文档加载响应，可以开始插入文本')
+          setDocumentReady(true)
+          // 文档加载完成后，再次发送Host_PostmessageReady确保通信建立
+          setTimeout(() => {
+            sendHostReady()
+          }, 1000)
+        } else if (data.MessageId === 'View_Added') {
+          console.log('📄 视图已添加，文档准备就绪')
+          setDocumentReady(true)
+        } else if (data.MessageId === 'App_LoadingStatus' && data.Values?.Status === 'Document_Loaded') {
+          console.log('📄 应用加载状态：文档已加载')
+          setDocumentReady(true)
+        }
+      } catch (error) {
+        console.log('📩 收到来自iframe的原始消息:', event.data)
+      }
+    }
+    
+    window.addEventListener('message', handleMessage)
+    
+    // 清理函数
+    return () => {
+      window.removeEventListener('message', handleMessage)
+      if (wsRef.current) {
+        wsRef.current.close()
+      }
+    }
+  }, [])
+  
+  // 注意：我们现在直接插入消息，不再等待documentReady状态
+
   // 使用 Collabora CODE 的 WOPI 协议
   const createNewDocument = () => {
     const fileId = 'empty.docx'
@@ -27,9 +216,13 @@ const EditorPanel: React.FC = () => {
       `access_token=${accessToken}&` +
       `lang=zh-CN`
     
-    console.log('🔗 生成的 WOPI URL (HTTPS):', url)
-    console.log('📋 WOPI Source:', wopiSrc)
-    console.log('🔑 Access Token:', accessToken)
+    // 只在第一次生成时记录日志，避免重复刷屏
+    if (!(window as any)._wopiUrlLogged) {
+      console.log('🔗 生成的 WOPI URL (HTTPS):', url)
+      console.log('📋 WOPI Source:', wopiSrc)
+      console.log('🔑 Access Token:', accessToken)
+      ;(window as any)._wopiUrlLogged = true
+    }
     
     return url
   }
@@ -49,6 +242,11 @@ const EditorPanel: React.FC = () => {
     setIframeError(false)
     setDocumentReady(true)
     messageApi.success('文档编辑器加载成功')
+    
+    // 延迟发送Host_PostmessageReady消息，确保iframe完全加载
+    setTimeout(() => {
+      sendHostReady()
+    }, 2000)
   }
 
   const items = [
@@ -85,14 +283,41 @@ const EditorPanel: React.FC = () => {
         <span>
           <FileTextOutlined />
           报告编制
+          <Badge 
+            dot={wsConnected} 
+            status={wsConnected ? 'success' : 'error'} 
+            style={{ marginLeft: '8px' }}
+          />
         </span>
       ),
       children: (
         <div style={{ height: 'calc(100vh - 72px)' }}>
+          {/* WebSocket状态显示 */}
+          <div style={{ 
+            padding: '8px 16px', 
+            background: wsConnected ? '#f6ffed' : '#fff2f0',
+            border: `1px solid ${wsConnected ? '#b7eb8f' : '#ffccc7'}`,
+            borderRadius: '6px',
+            marginBottom: '8px',
+            fontSize: '12px'
+          }}>
+            <WifiOutlined style={{ 
+              color: wsConnected ? '#52c41a' : '#ff4d4f', 
+              marginRight: '8px' 
+            }} />
+            Agent服务状态: {wsConnected ? '已连接' : '未连接'} | 
+            已接收指令: {receivedMessages.length} 条
+            {receivedMessages.length > 0 && (
+              <span style={{ marginLeft: '16px', color: '#666' }}>
+                最新: {receivedMessages[receivedMessages.length - 1]}
+              </span>
+            )}
+          </div>
+          
           {iframeError ? (
             <div style={{ 
               padding: '24px', 
-              height: '100%', 
+              height: 'calc(100% - 40px)', 
               display: 'flex', 
               flexDirection: 'column',
               alignItems: 'center', 
@@ -140,7 +365,7 @@ const EditorPanel: React.FC = () => {
               </Button>
             </div>
           ) : (
-            <div style={{ height: '100%', position: 'relative' }}>
+            <div style={{ height: 'calc(100% - 40px)', position: 'relative' }}>
               {!documentReady && (
                 <div style={{
                   position: 'absolute',
@@ -157,6 +382,7 @@ const EditorPanel: React.FC = () => {
                 </div>
               )}
               <iframe
+                ref={iframeRef}
                 key={iframeKey}
                 id={uniqueId}
                 src={createNewDocument()}

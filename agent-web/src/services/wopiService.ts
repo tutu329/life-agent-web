@@ -49,7 +49,7 @@ export class WOPIService {
         UserFriendlyName: 'Agent User',
         UserCanWrite: true,
         UserCanNotWriteRelative: false,
-        PostMessageOrigin: this.baseUrl,
+        PostMessageOrigin: 'https://powerai.cc:5101',
         LastModifiedTime: new Date().toISOString(),
         SHA256: 'dummy-hash',
         UserPreferredLanguage: 'zh-CN' // 设置用户偏好语言为简体中文
@@ -70,7 +70,7 @@ export class WOPIService {
       }
 
       // WOPI服务器应该直接从文件系统读取文件，而不是通过HTTP请求
-      // 这个方法在WOPI服务器中不会被调用，文件读取在wopiServer.ts中直接处理
+      // 这个方法在WOPI服务器中不会被调用，文件读取在wopiHttpHandler.ts中直接处理
       return { success: true, data: null }
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }

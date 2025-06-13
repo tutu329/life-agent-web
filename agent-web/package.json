@@ -8,7 +8,7 @@
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "wopi-server": "tsx src/server/wopiServer.ts"
+    "wopi-server": "tsx src/server/wopiHttpHandler.ts"
   },
   "dependencies": {
     "@ant-design/icons": "^5.2.6",

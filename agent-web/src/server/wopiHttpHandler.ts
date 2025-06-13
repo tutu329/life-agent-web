@@ -143,6 +143,53 @@ app.post('/wopi/files/:fileId/contents', async (req: Request, res: Response) => 
   }
 })
 
+// 添加文本到文档的API端点
+app.post('/append-text', async (req: Request, res: Response) => {
+  const { text } = req.body
+  
+  console.log(`📝 接收到文本插入请求: ${text}`)
+  
+  try {
+    // 使用Python脚本修改docx文件
+    const { exec } = require('child_process')
+    const command = `cd /home/tutu/server/life-agent-web && python3 -c "
+import sys
+sys.path.append('.')
+from docx import Document
+import os
+
+# 读取现有文档
+doc_path = 'public/empty.docx'
+if os.path.exists(doc_path):
+    doc = Document(doc_path)
+else:
+    doc = Document()
+
+# 添加新文本
+doc.add_paragraph('${text}')
+
+# 保存文档
+doc.save(doc_path)
+print('文档已更新')
+"`
+    
+    exec(command, (error: any, stdout: any, stderr: any) => {
+      if (error) {
+        console.error('❌ Python脚本执行失败:', error)
+        res.status(500).json({ error: 'Failed to update document' })
+        return
+      }
+      
+      console.log('✅ 文档已更新:', stdout)
+      res.json({ success: true, message: 'Text appended successfully' })
+    })
+    
+  } catch (error) {
+    console.error('❌ 文本插入失败:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
 // 健康检查
 app.get('/health', (req: Request, res: Response) => {
   res.json({ status: 'ok', service: 'WOPI Server', port: PORT })
