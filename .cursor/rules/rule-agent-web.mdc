@@ -18,6 +18,7 @@ agent-web项目注意事项：
     b）另外CODE的5102访问5101的empty.docx有跨域CORS问题，要配置好，最好CODE采用WOPI协议访问docx
     c）测试结果表明，CODE和wopi都必须用https才行，目前用了powerai.cc的/home/tutu/ssl/下的证书，且要特别注意CODE和wopi使用ssl时证书文件的权限问题，一定要解决清楚。
     d）测试结果表明，agent-web（5101）也要运行在https上，否则CODE、wopi和agent-web就会产生Content Security Policy (CSP) 问题。都用https后，现在已经跑通。
+    e）记得要让CODE控件界面设置为简体中文。
 ）
 5）powerai.cc上如果要调用python要这样：
 source /home/tutu/anaconda3/etc/profile.d/conda.sh
