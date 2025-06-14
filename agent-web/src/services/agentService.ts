@@ -104,7 +104,7 @@ export class AgentService {
     const request: Agents_System_Request = {
       remote_tools: [],
       upper_agent_config: {
-        tool_names: ['Human_Console_Tool'],
+        tool_names: ['Office_Tool'],
         exp_json_path: 'my_2_levels_mas_exp.json',
         base_url: 'https://api.deepseek.com/v1',
         api_key: 'sk-c1d34a4f21e3413487bb4b2806f6c4b8',
@@ -113,10 +113,12 @@ export class AgentService {
       },
       lower_agents_config: [
         {
-          tool_names: ['Human_Console_Tool', 'Folder_Tool'],
+          tool_names: ['Office_Tool'],
+          // tool_names: ['Human_Console_Tool', 'Folder_Tool'],
           exp_json_path: '',
-          as_tool_name: 'Folder_Agent_As_Tool',
-          as_tool_description: '本工具用于获取文件夹中的文件和文件夹信息',
+          as_tool_name: 'Office_Agent_As_Tool',
+          // as_tool_name: 'Folder_Agent_As_Tool',
+          as_tool_description: '本工具用于读写office文档',
           base_url: 'https://api.deepseek.com/v1',
           api_key: 'sk-c1d34a4f21e3413487bb4b2806f6c4b8',
           llm_model_id: 'deepseek-chat',

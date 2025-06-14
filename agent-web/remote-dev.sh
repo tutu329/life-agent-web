@@ -40,39 +40,17 @@ cd /home/tutu/server/life-agent-web
 echo "📌 使用Node.js版本: $(node --version)"
 echo "📌 使用npm版本: $(npm --version)"
 
-# 1. 启动Agent Mock Server (端口5112) - 已注释掉
-# echo "🤖 启动Agent Mock Server..."
-# # 检查端口5112是否被占用
-# if sudo lsof -i:5112 > /dev/null 2>&1; then
-#   echo "🛑 停止已有的5112端口应用..."
-#   sudo pkill -f "agent_mock_server.py" || true
-#   sudo lsof -ti:5112 | xargs sudo kill -9 || true
-#   sleep 2
-# fi
-
-# # 启动Mock Server
-# if [ -f "public/plugins/agent_listener3/agent_mock_server.py" ]; then
-#   echo "🚀 在后台启动Agent Mock Server (端口5112)..."
-#   cd public/plugins/agent_listener3
-#   # 激活conda环境
-#   source /home/tutu/anaconda3/etc/profile.d/conda.sh
-#   conda activate client
-#   # 检查websockets库是否安装
-#   python -c "import websockets" 2>/dev/null || pip install websockets
-#   # 在后台启动
-#   nohup python agent_mock_server.py > /tmp/agent_mock_server.log 2>&1 &
-#   cd ../../..
-#   sleep 1
-#   # 检查是否启动成功
-#   if sudo lsof -i:5112 > /dev/null 2>&1; then
-#     echo "✅ Agent Mock Server 已启动 (端口5112)"
-#     echo "📄 日志文件: /tmp/agent_mock_server.log"
-#   else
-#     echo "❌ Agent Mock Server 启动失败"
-#   fi
-# else
-#   echo "⚠️ 警告: agent_mock_server.py 文件未找到，跳过Mock Server启动"
-# fi
+# 1. 检查5112端口状态 (Office WebSocket服务器)
+echo "🔍 检查5112端口状态..."
+# 检查端口5112是否被占用
+if sudo lsof -i:5112 > /dev/null 2>&1; then
+  echo "📋 5112端口占用情况:"
+  sudo lsof -i:5112
+  echo "ℹ️ 注意: 如果是Agent FastAPI服务器占用5112端口，这是正常的"
+  echo "🤔 如果需要重启Office WebSocket服务器，请先停止Agent FastAPI服务器"
+else
+  echo "✅ 5112端口无占用"
+fi
 
 # 2. 重启 Collabora CODE docker服务 (5102端口)
 echo "🔄 重启 Collabora CODE 服务器..."
@@ -87,7 +65,7 @@ sudo groupadd ssl-cert 2>/dev/null || true
 sudo usermod -a -G ssl-cert tutu 2>/dev/null || true
 # 设置证书文件的组为ssl-cert，并设置适当权限
 sudo chown 1001:ssl-cert /home/tutu/ssl/powerai.key /home/tutu/ssl/powerai_public.crt /home/tutu/ssl/powerai_chain.crt
-sudo chmod 640 /home/tutu/ssl/powerai.key  # 私钥：所有者和组可读
+sudo chmod 644 /home/tutu/ssl/powerai.key  # 私钥：所有者和组可读
 sudo chmod 644 /home/tutu/ssl/powerai_public.crt /home/tutu/ssl/powerai_chain.crt  # 公钥：所有人可读
 
 # 启动 Collabora CODE 容器，使用 SSL 证书和中文语言支持
@@ -138,7 +116,17 @@ else
   echo "📄 查看日志: tail -f /tmp/wopi_server.log"
 fi
 
-# 4. kill掉已有的5101端口应用
+# 4. 最终端口状态检查
+echo "🔍 最终端口状态检查..."
+
+# 检查5112端口状态（Office WebSocket服务器应该正在运行）
+if sudo lsof -i:5112 > /dev/null 2>&1; then
+  echo "✅ 5112端口正在使用中（Office WebSocket服务器）"
+else
+  echo "⚠️ 警告: 5112端口未被占用，Office WebSocket服务器可能未启动"
+fi
+
+# 清理5101端口应用
 echo "🛑 停止已有的5101端口应用..."
 sudo pkill -f "port.*5101" || true
 sudo lsof -ti:5101 | xargs sudo kill -9 || true

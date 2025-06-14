@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Tabs, Alert, Button, message, Badge } from 'antd'
 import { BarChartOutlined, FileTextOutlined, ReloadOutlined, WifiOutlined } from '@ant-design/icons'
+import { useAgentContext } from '../App'
 
 const EditorPanel: React.FC = () => {
+  const { agentId, agentInitialized } = useAgentContext()
   const [messageApi, contextHolder] = message.useMessage()
   const [iframeError, setIframeError] = useState(false)
   const [iframeKey, setIframeKey] = useState(0)
@@ -19,63 +21,130 @@ const EditorPanel: React.FC = () => {
   // Collabora CODE 配置
   const collaboraUrl = 'https://powerai.cc:5102'
   const wopiServerUrl = 'https://powerai.cc:5103'
-  // 注释掉WebSocket连接，现在使用Agent系统的流式接口
-  // const wsUrl = 'wss://powerai.cc:5112'  // WebSocket服务器地址 (使用WSS安全连接)
+  // WebSocket连接，用于接收后台Agent系统的Office操作指令
+  const wsUrls = [
+    'wss://powerai.cc:5112',  // 首先尝试安全连接
+    'ws://powerai.cc:5112'    // 如果安全连接失败，尝试普通连接
+  ]
   
-  // 初始化WebSocket连接 - 暂时禁用，等待后台Agent系统支持控制EditorPanel
-  const initWebSocket = () => {
-    console.log('🚫 WebSocket连接已禁用，等待后台Agent系统支持')
-    // 暂时不连接WebSocket，因为：
-    // 1. Mock server已关闭
-    // 2. 后台Agent系统暂时只测试Folder_Tool，不控制EditorPanel
-    // 3. 后续需要时再启用：InteractionPanel → 后台Agent → WebSocket → EditorPanel
+  // 初始化WebSocket连接 - 用于接收后台Agent系统的Office操作指令
+  const initWebSocket = (urlIndex = 0) => {
+    if (urlIndex >= wsUrls.length) {
+      console.error('❌ 所有WebSocket连接尝试都失败了')
+      messageApi.error('无法连接到Office服务器')
+      return
+    }
     
-    /* 原WebSocket代码已注释
+    const wsUrl = wsUrls[urlIndex]
+    console.log(`🚀 尝试连接Office WebSocket服务器 (${urlIndex + 1}/${wsUrls.length}): ${wsUrl}`)
+    console.log('🔍 当前Agent状态:', { agentId, agentInitialized })
+    
     try {
       const ws = new WebSocket(wsUrl)
       wsRef.current = ws
       
+      // 添加连接超时检测
+      const connectionTimeout = setTimeout(() => {
+        if (ws.readyState === WebSocket.CONNECTING) {
+          console.error('⏰ WebSocket连接超时')
+          ws.close()
+        }
+      }, 10000) // 10秒超时
+      
       ws.onopen = () => {
-        console.log('🔗 WebSocket连接已建立')
-        setWsConnected(true)
-        messageApi.success('Agent服务连接成功')
+        console.log('🔗 Office WebSocket连接已建立')
+        
+        // 发送agent_id注册消息
+        // 使用从AgentContext获取的真实agent_id
+        const currentAgentId = agentId || ('agent_web_default_' + Date.now())
+        const registerMessage = {
+          type: 'register',
+          agent_id: currentAgentId
+        }
+        
+        console.log('📝 发送Agent注册消息:', registerMessage, '(Agent初始化状态:', agentInitialized, ')')
+        ws.send(JSON.stringify(registerMessage))
       }
       
       ws.onmessage = (event) => {
-        const message = event.data
-        console.log('📨 收到Agent指令:', message)
-        setReceivedMessages(prev => [...prev.slice(-9), message]) // 保留最近10条消息
-        
-        // 延迟1秒后插入文本，确保iframe完全加载
-        setTimeout(() => {
-          insertTextToDocument(message)
-        }, 1000)
+        console.log('📨 收到WebSocket消息:', event.data)
+        try {
+          const message = JSON.parse(event.data)
+          
+          if (message.type === 'register_success') {
+            console.log('✅ Agent注册成功:', message)
+            setWsConnected(true)
+            messageApi.success('Office服务连接成功')
+          } else if (message.type === 'office_operation') {
+            console.log('🔧 收到Office操作指令:', message)
+            handleOfficeCommand(message)
+          } else {
+            console.log('📩 收到其他类型消息:', message)
+          }
+        } catch (error) {
+          console.error('❌ 解析WebSocket消息失败:', error)
+          // 兼容处理：如果不是JSON格式，当作文本指令处理
+          const textMessage = event.data
+          setReceivedMessages(prev => [...prev.slice(-9), textMessage]) // 保留最近10条消息
+          
+          // 延迟1秒后插入文本，确保iframe完全加载
+          setTimeout(() => {
+            insertTextToDocument(textMessage)
+          }, 1000)
+        }
       }
       
       ws.onclose = (event) => {
-        console.log('🔌 WebSocket连接已关闭:', event.code, event.reason)
+        console.log('🔌 Office WebSocket连接已关闭:', event.code, event.reason)
         setWsConnected(false)
-        messageApi.warning('Agent服务连接断开')
+        messageApi.warning('Office服务连接断开')
         
         // 5秒后尝试重连
         setTimeout(() => {
           if (!wsRef.current || wsRef.current.readyState === WebSocket.CLOSED) {
-            console.log('🔄 尝试重新连接WebSocket...')
+            console.log('🔄 尝试重新连接Office WebSocket...')
             initWebSocket()
           }
         }, 5000)
       }
       
       ws.onerror = (error) => {
-        console.error('❌ WebSocket错误:', error)
-        messageApi.error('Agent服务连接错误')
+        console.error(`❌ Office WebSocket错误 (${wsUrl}):`, error)
+        // 如果当前连接失败，尝试下一个URL
+        if (urlIndex + 1 < wsUrls.length) {
+          console.log('🔄 尝试下一个WebSocket地址...')
+          setTimeout(() => {
+            initWebSocket(urlIndex + 1)
+          }, 1000)
+        } else {
+          messageApi.error('Office服务连接错误')
+        }
       }
       
     } catch (error) {
-      console.error('❌ WebSocket初始化失败:', error)
-      messageApi.error('无法连接到Agent服务')
+      console.error('❌ Office WebSocket初始化失败:', error)
+      messageApi.error('无法连接到Office服务')
     }
-    */
+  }
+  
+  // 处理来自后台Agent的Office操作指令
+  const handleOfficeCommand = (message: any) => {
+    console.log('🔧 处理Office操作指令:', message)
+    
+    const { operation, data, agent_id } = message
+    console.log(`📋 操作: ${operation}, Agent ID: ${agent_id}`)
+    
+    switch (operation) {
+      case 'insert_text':
+        if (data && data.text) {
+          setReceivedMessages(prev => [...prev.slice(-9), data.text]) // 保留最近10条消息
+          insertTextToDocument(data.text)
+        }
+        break
+      
+      default:
+        console.warn('❌ 未知的Office操作:', operation)
+    }
   }
   
   // 向Collabora CODE插入文本 - 使用官方API
@@ -170,11 +239,12 @@ const EditorPanel: React.FC = () => {
     }, 200)
   }
   
-  // 组件挂载时初始化WebSocket - 暂时禁用
+  // 组件挂载时初始化WebSocket - 现在启用
   useEffect(() => {
-    // 暂时不初始化WebSocket，等待后台Agent系统支持
-    // initWebSocket()
-    console.log('📝 EditorPanel已加载，WebSocket功能暂时禁用')
+    // 启用WebSocket连接，接收后台Agent系统的Office操作指令
+    initWebSocket()
+    console.log('📝 EditorPanel已加载，Office WebSocket功能已启用')
+    console.log('🔍 当前Agent状态:', { agentId, agentInitialized })
     
     // 监听来自Collabora CODE的消息
     const handleMessage = (event: MessageEvent) => {
@@ -212,6 +282,18 @@ const EditorPanel: React.FC = () => {
       }
     }
   }, [])
+
+  // 监听agentId变化，重新注册WebSocket连接
+  useEffect(() => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN && agentId) {
+      console.log('🔄 Agent ID已更新，重新注册WebSocket连接:', agentId)
+      const registerMessage = {
+        type: 'register',
+        agent_id: agentId
+      }
+      wsRef.current.send(JSON.stringify(registerMessage))
+    }
+  }, [agentId])
   
   // 注意：我们现在直接插入消息，不再等待documentReady状态
 
@@ -316,7 +398,7 @@ const EditorPanel: React.FC = () => {
               color: wsConnected ? '#52c41a' : '#ff4d4f', 
               marginRight: '8px' 
             }} />
-            Agent服务状态: 已禁用 (等待后台Agent系统支持) | 
+            Office服务状态: {wsConnected ? '已连接' : '已断开'} | 
             已接收指令: {receivedMessages.length} 条
             {receivedMessages.length > 0 && (
               <span style={{ marginLeft: '16px', color: '#666' }}>

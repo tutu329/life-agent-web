@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Input, List, Avatar, Typography, Divider, Spin, Button, message, Collapse, Switch, Card } from 'antd'
 import { UserOutlined, RobotOutlined, SendOutlined, ReloadOutlined, CaretRightOutlined, ApiOutlined, LoadingOutlined } from '@ant-design/icons'
-import { useLLMConfig } from '../App'
+import { useLLMConfig, useAgentContext } from '../App'
 import { LLMService, ChatMessage } from '../services/llmService'
 import { AgentService, StreamType } from '../services/agentService'
 
@@ -34,6 +34,7 @@ interface Message {
 
 const InteractionPanel: React.FC = () => {
   const llmConfig = useLLMConfig()
+  const { agentId, setAgentId, agentInitialized, setAgentInitialized } = useAgentContext()
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
@@ -53,8 +54,6 @@ const InteractionPanel: React.FC = () => {
   // Agent相关的状态
   const [useAgentMode, setUseAgentMode] = useState(false)
   const [agentService] = useState(() => new AgentService())
-  const [agentInitialized, setAgentInitialized] = useState(false)  
-  const [agentId, setAgentId] = useState<string | null>(null)
   const [isInitializingAgent, setIsInitializingAgent] = useState(false)
   
   // 当前活跃的流监听器

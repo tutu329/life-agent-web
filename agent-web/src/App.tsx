@@ -66,6 +66,25 @@ export const useLLMConfig = () => {
   return context
 }
 
+// 创建Agent上下文
+interface AgentContextType {
+  agentId: string | null
+  setAgentId: (id: string | null) => void
+  agentInitialized: boolean
+  setAgentInitialized: (initialized: boolean) => void
+}
+
+export const AgentContext = createContext<AgentContextType | null>(null)
+
+// 创建Hook来使用Agent上下文
+export const useAgentContext = () => {
+  const context = useContext(AgentContext)
+  if (!context) {
+    throw new Error('useAgentContext must be used within AgentContextProvider')
+  }
+  return context
+}
+
 function App() {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false)
   const [form] = Form.useForm()
@@ -80,6 +99,10 @@ function App() {
   const [isAddModelModalOpen, setIsAddModelModalOpen] = useState(false)
   const [addModelForm] = Form.useForm()
   const [editingModelKey, setEditingModelKey] = useState<string | null>(null)
+  
+  // Agent相关状态
+  const [agentId, setAgentId] = useState<string | null>(null)
+  const [agentInitialized, setAgentInitialized] = useState(false)
 
   // 获取所有模型配置（默认+自定义）
   const getAllModels = (): Record<string, ModelConfig> => ({...DEFAULT_MODEL_PRESETS, ...customModels})
@@ -217,7 +240,13 @@ function App() {
     >
       {contextHolder}
       <LLMConfigContext.Provider value={currentLLMConfig}>
-        <Layout style={{ height: '100vh' }}>
+        <AgentContext.Provider value={{
+          agentId,
+          setAgentId,
+          agentInitialized,
+          setAgentInitialized
+        }}>
+          <Layout style={{ height: '100vh' }}>
           {/* 顶部 Header */}
           <Header style={{ 
             background: '#f8fafc', 
@@ -513,6 +542,7 @@ function App() {
             </Form>
           </Modal>
         </Layout>
+        </AgentContext.Provider>
       </LLMConfigContext.Provider>
     </ConfigProvider>
   )
