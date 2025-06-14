@@ -124,22 +124,22 @@ const InteractionPanel: React.FC = () => {
 
   // 监听单个SSE流
   const listenToStream = async (streamId: string, streamName: StreamType, messageId: number) => {
-    const streamKey = `${streamId}-${streamName}`
+    const streamKey = `${streamId}-${streamName}-${messageId}` // 加入messageId确保唯一性
     if (activeStreamsRef.current.has(streamKey)) {
       console.log(`流 ${streamName} 已在监听中，跳过重复监听`)
       return
     }
     
     activeStreamsRef.current.add(streamKey)
-    console.log(`🔗 开始监听流: ${streamName}`)
+    console.log(`🔗 开始监听流: ${streamName}, 目标消息ID: ${messageId}`)
     
     try {
       for await (const event of agentService.listenToStream(streamId, streamName)) {
-        // 更新对应的消息内容
+        // 更新对应的消息内容 - 严格匹配messageId
         setMessages(prev => {
           return prev.map(msg => {
             if (msg.id === messageId && msg.isAgentMode) {
-              // 初始化streamData
+              // 确保初始化streamData，避免复用之前的数据
               const currentStreamData = msg.streamData || {
                 output: '',
                 thinking: '',
@@ -168,7 +168,7 @@ const InteractionPanel: React.FC = () => {
       console.error(`❌ 流 ${streamName} 监听出错:`, error)
     } finally {
       activeStreamsRef.current.delete(streamKey)
-      console.log(`📡 流 ${streamName} 监听结束`)
+      console.log(`📡 流 ${streamName} 监听结束，消息ID: ${messageId}`)
     }
   }
 
@@ -220,15 +220,30 @@ const InteractionPanel: React.FC = () => {
     try {
       console.log('🚀 发送查询到Agent系统:', query)
       
-      // 创建Agent响应消息
-      const agentMessageId = Date.now() + 1
+      // 清理所有之前的流监听，避免数据混乱
+      console.log('🧹 清理之前的流监听器...')
+      activeStreamsRef.current.clear()
+      
+      // 清理之前的状态检查
+      console.log('🧹 清理之前的状态检查...')
+      stopStatusCheck()
+      
+      // 创建Agent响应消息 - 确保每次都是全新的消息ID和初始化状态
+      const agentMessageId = Date.now() + Math.floor(Math.random() * 10000) // 更好的唯一性保证
       const initialAgentMessage: Message = {
         id: agentMessageId,
         content: '🤖 Agent系统正在处理您的请求...\n\n',
         isUser: false,
         timestamp: new Date(),
         isStreaming: true,
-        isAgentMode: true
+        isAgentMode: true,
+        streamData: {
+          output: '',
+          thinking: '',
+          log: '',
+          tool_rtn_data: '',
+          final_answer: ''
+        } // 明确初始化空的streamData
       }
       setMessages(prev => [...prev, initialAgentMessage])
 
@@ -265,7 +280,7 @@ const InteractionPanel: React.FC = () => {
       
       // 显示错误消息
       const errorMessage: Message = {
-        id: Date.now() + 2,
+        id: Date.now() + Math.floor(Math.random() * 10000),
         content: `❌ Agent查询失败: ${error instanceof Error ? error.message : '未知错误'}`,
         isUser: false,
         timestamp: new Date(),
@@ -422,7 +437,7 @@ const InteractionPanel: React.FC = () => {
     }
   }
 
-  const renderThinkingBox = (thinking: string | undefined, isStreaming?: boolean, hasThinkingContent?: boolean) => {
+  const renderThinkingBox = (thinking: string | undefined, isStreaming?: boolean, hasThinkingContent?: boolean, messageId?: number) => {
     const llmService = llmServiceRef.current
     const isThinkingModel = llmService?.isThinkingModel() || false
     
@@ -443,7 +458,7 @@ const InteractionPanel: React.FC = () => {
 
     const thinkingItems = [
       {
-        key: '1',
+        key: `thinking-${messageId}`, // 使用messageId确保唯一性
         label: (
           <span style={{ fontSize: '12px', color: '#6a737d' }}>
             思考过程
@@ -493,7 +508,7 @@ const InteractionPanel: React.FC = () => {
     )
   }
 
-  const renderAgentStreamsBox = (streamData: Message['streamData'], isStreaming?: boolean) => {
+  const renderAgentStreamsBox = (streamData: Message['streamData'], isStreaming?: boolean, messageId?: number) => {
     if (!streamData) return null
     
     // 检查是否有除了final_answer之外的流数据
@@ -527,7 +542,7 @@ const InteractionPanel: React.FC = () => {
 
     const agentStreamItems = [
       {
-        key: '1',
+        key: `agent-streams-${messageId}`, // 使用messageId确保唯一性
         label: (
           <span style={{ fontSize: '12px', color: '#722ed1' }}>
             Agent流程详情
@@ -626,10 +641,10 @@ const InteractionPanel: React.FC = () => {
           description={
             <div>
               {/* Thinking 部分 (仅LLM模式) */}
-              {!isAgentMessage && renderThinkingBox(message.thinking, message.isStreaming, message.hasThinking)}
+              {!isAgentMessage && renderThinkingBox(message.thinking, message.isStreaming, message.hasThinking, message.id)}
               
               {/* Agent流程详情 (可折叠的紫色框) */}
-              {isAgentMessage && renderAgentStreamsBox(message.streamData, message.isStreaming)}
+              {isAgentMessage && renderAgentStreamsBox(message.streamData, message.isStreaming, message.id)}
               
               {/* 主要内容 */}
               <div style={{ marginTop: '8px' }}>
@@ -655,6 +670,7 @@ const InteractionPanel: React.FC = () => {
                     {/* Final Answer 单独显示 */}
                     {message.streamData?.final_answer && (
                       <Paragraph 
+                        key={`final-answer-${message.id}`} // 添加唯一key
                         style={{ 
                           margin: 0, 
                           whiteSpace: 'pre-wrap',
@@ -729,7 +745,11 @@ const InteractionPanel: React.FC = () => {
             stopStatusCheck()
             setMessages(prev => prev.map(msg => 
               msg.id === messageId 
-                ? { ...msg, isStreaming: false }
+                ? { 
+                    ...msg, 
+                    isStreaming: false,
+                    content: '✅ Agent任务已完成\n\n' + (msg.streamData?.final_answer ? '请查看下方的最终回答。' : '任务处理完毕。')
+                  }
                 : msg
             ))
             setIsLoading(false)
