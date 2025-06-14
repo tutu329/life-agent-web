@@ -54,16 +54,19 @@ const EditorPanel: React.FC = () => {
       ws.onopen = () => {
         console.log('🔗 Office WebSocket连接已建立')
         
-        // 发送agent_id注册消息
-        // 使用从AgentContext获取的真实agent_id
-        const currentAgentId = agentId || ('agent_web_default_' + Date.now())
-        const registerMessage = {
-          type: 'register',
-          agent_id: currentAgentId
+        // 只有当agentId存在时才发送注册消息
+        if (agentId) {
+          const registerMessage = {
+            type: 'register',
+            agent_id: agentId
+          }
+          
+          console.log('📝 发送Agent注册消息:', registerMessage, '(Agent初始化状态:', agentInitialized, ')')
+          console.log(`🆔 当前EditorPanel使用的Agent ID: ${agentId}`)
+          ws.send(JSON.stringify(registerMessage))
+        } else {
+          console.log('⏳ agentId为空，等待Agent系统初始化后再注册WebSocket连接')
         }
-        
-        console.log('📝 发送Agent注册消息:', registerMessage, '(Agent初始化状态:', agentInitialized, ')')
-        ws.send(JSON.stringify(registerMessage))
       }
       
       ws.onmessage = (event) => {
@@ -133,6 +136,19 @@ const EditorPanel: React.FC = () => {
     
     const { operation, data, agent_id } = message
     console.log(`📋 操作: ${operation}, Agent ID: ${agent_id}`)
+    
+    // 检查agent_id是否匹配当前前端的agentId
+    console.log(`🔍 Agent ID比较: 消息中的=${agent_id}, 当前前端的=${agentId}`)
+    
+    if (!agentId) {
+      console.log(`⚠️ 当前前端agentId为空，忽略Office指令`)
+      return
+    }
+    
+    if (agent_id && agent_id !== agentId) {
+      console.log(`⚠️ 忽略不匹配的Agent指令: ${agent_id} !== ${agentId}`)
+      return
+    }
     
     switch (operation) {
       case 'insert_text':
@@ -239,11 +255,30 @@ const EditorPanel: React.FC = () => {
     }, 200)
   }
   
-  // 组件挂载时初始化WebSocket - 现在启用
+  // 监听agentId变化，输出调试信息
   useEffect(() => {
-    // 启用WebSocket连接，接收后台Agent系统的Office操作指令
-    initWebSocket()
-    console.log('📝 EditorPanel已加载，Office WebSocket功能已启用')
+    console.log('🔍 EditorPanel - agentId发生变化:', agentId)
+    console.log('🔍 EditorPanel - agentInitialized状态:', agentInitialized)
+    console.log('🔍 EditorPanel - 将使用的Agent ID:', agentId || '(空)')
+  }, [agentId, agentInitialized])
+
+  // 监听agentId变化，当agentId可用时才初始化WebSocket
+  useEffect(() => {
+    if (agentId) {
+      console.log('📝 Agent ID已可用，初始化WebSocket连接:', agentId)
+      initWebSocket()
+      
+      // 重新加载iframe以使用独立的文档
+      console.log('🔄 重新加载文档编辑器以使用独立文档')
+      setIframeKey(prev => prev + 1)
+    } else {
+      console.log('⏳ 等待Agent ID...')
+    }
+  }, [agentId])
+
+  // 组件挂载时的初始化
+  useEffect(() => {
+    console.log('📝 EditorPanel已加载')
     console.log('🔍 当前Agent状态:', { agentId, agentInitialized })
     
     // 监听来自Collabora CODE的消息
@@ -287,6 +322,7 @@ const EditorPanel: React.FC = () => {
   useEffect(() => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN && agentId) {
       console.log('🔄 Agent ID已更新，重新注册WebSocket连接:', agentId)
+      
       const registerMessage = {
         type: 'register',
         agent_id: agentId
@@ -299,7 +335,19 @@ const EditorPanel: React.FC = () => {
 
   // 使用 Collabora CODE 的 WOPI 协议
   const createNewDocument = () => {
-    const fileId = 'empty.docx'
+    // 为每个Agent会话创建独立的文档ID，避免协同编辑冲突
+    let fileId = 'empty.docx' // 默认文档
+    
+    if (agentId) {
+      // 如果有agentId，使用它创建独立的文档ID
+      fileId = `agent_doc_${agentId.substring(0, 8)}.docx`
+      console.log(`📄 为Agent ${agentId} 创建独立文档: ${fileId}`)
+    } else {
+      // 如果没有agentId，使用唯一ID避免冲突
+      fileId = `temp_doc_${uniqueId}.docx`
+      console.log(`📄 创建临时文档: ${fileId}`)
+    }
+    
     const accessToken = 'demo_token'
     const wopiSrc = `${wopiServerUrl}/wopi/files/${fileId}`
     

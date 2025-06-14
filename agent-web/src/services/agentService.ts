@@ -224,19 +224,23 @@ export class AgentService {
     }
 
     try {
+      console.log('🚀 开始发送状态检查请求...')
       const response = await fetch(`${this.baseUrl}/api/get_agent_status`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(request),
+        body: JSON.stringify(request)
       })
-
+      console.log('📡 收到响应，状态码:', response.status)
+      
       if (response.ok) {
         const status = await response.json()
+        console.log(`📊 Agent状态: finished=${status.finished}`)
         return status
       } else {
-        throw new Error(`检查状态失败: ${response.status}`)
+        const errorText = await response.text()
+        throw new Error(`检查状态失败: ${response.status} - ${errorText}`)
       }
     } catch (error) {
       console.error('❌ 检查Agent状态错误:', error)

@@ -58,7 +58,12 @@ const InteractionPanel: React.FC = () => {
   
   // 当前活跃的流监听器
   const activeStreamsRef = useRef<Set<string>>(new Set())
-
+  
+  // Agent状态检查相关
+  const [currentTaskMessageId, setCurrentTaskMessageId] = useState<number | null>(null)
+  const statusCheckIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const isCheckingStatusRef = useRef(false)
+  
   // 初始化LLM服务
   useEffect(() => {
     llmServiceRef.current = new LLMService(llmConfig)
@@ -251,30 +256,8 @@ const InteractionPanel: React.FC = () => {
         console.log('📡 所有流监听已开始')
       })
 
-      // 开始检查Agent状态
-      const checkStatus = async () => {
-        try {
-          while (true) {
-            const status = await agentService.checkAgentStatus()
-            if (status.finished) {
-              console.log('✅ Agent任务执行完成')
-              // 更新消息状态
-              setMessages(prev => prev.map(msg => 
-                msg.id === agentMessageId 
-                  ? { ...msg, isStreaming: false }
-                  : msg
-              ))
-              break
-            }
-            await new Promise(resolve => setTimeout(resolve, 1000))
-          }
-        } catch (error) {
-          console.error('❌ 检查Agent状态出错:', error)
-        }
-      }
-
-      // 异步检查状态
-      checkStatus()
+      // 持久的Agent状态检查函数
+      startStatusCheck(agentMessageId)
 
     } catch (error) {
       console.error('❌ Agent查询错误:', error)
@@ -291,8 +274,6 @@ const InteractionPanel: React.FC = () => {
         isAgentMode: true
       }
       setMessages(prev => [...prev, errorMessage])
-    } finally {
-      setIsLoading(false)
     }
   }
 
@@ -437,6 +418,7 @@ const InteractionPanel: React.FC = () => {
       setAgentId(null)
       agentService.resetAgentId()
       activeStreamsRef.current.clear()
+      stopStatusCheck() // 清理状态检查
     }
   }
 
@@ -714,6 +696,68 @@ const InteractionPanel: React.FC = () => {
       </List.Item>
     )
   }
+
+  // 简化的状态检查函数
+  const startStatusCheck = (messageId: number) => {
+    console.log(`🚀 启动状态检查，目标消息ID: ${messageId}`)
+    
+    // 清理之前的检查
+    if (statusCheckIntervalRef.current) {
+      clearInterval(statusCheckIntervalRef.current)
+    }
+    
+    setCurrentTaskMessageId(messageId)
+    
+    // 设置定时器，每5秒检查一次
+    statusCheckIntervalRef.current = setInterval(() => {
+      console.log('⏰ 定时器触发')
+      
+      // 如果上一次检查还在进行中，跳过这次检查
+      if (isCheckingStatusRef.current) {
+        console.log('⏸️ 上次状态检查还在进行中，跳过这次检查')
+        return
+      }
+      
+      void (async () => {
+        isCheckingStatusRef.current = true
+        try {
+          console.log('🔍 开始状态检查')
+          const status = await agentService.checkAgentStatus()
+          console.log('✅ 状态检查完成:', status)
+          if (status.finished === true) {
+            console.log('🎉 Agent任务完成！')
+            stopStatusCheck()
+            setMessages(prev => prev.map(msg => 
+              msg.id === messageId 
+                ? { ...msg, isStreaming: false }
+                : msg
+            ))
+            setIsLoading(false)
+          }
+        } catch (error) {
+          console.error('❌ 状态检查失败:', error)
+        } finally {
+          isCheckingStatusRef.current = false
+        }
+      })()
+    }, 5000)
+  }
+  
+  const stopStatusCheck = () => {
+    console.log('🛑 停止状态检查')
+    if (statusCheckIntervalRef.current) {
+      clearInterval(statusCheckIntervalRef.current)
+      statusCheckIntervalRef.current = null
+    }
+    setCurrentTaskMessageId(null)
+  }
+  
+  // 组件卸载时清理状态检查
+  useEffect(() => {
+    return () => {
+      stopStatusCheck()
+    }
+  }, [])
 
   return (
     <div style={{ 
