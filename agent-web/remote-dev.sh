@@ -77,6 +77,7 @@ sudo docker run -d \
   -e "DONT_GEN_SSL_CERT=1" \
   -e "dictionaries=en_US zh_CN" \
   -e "extra_params=--o:ssl.enable=true --o:ssl.termination=false --o:ssl.cert_file_path=/opt/ssl/powerai_public.crt --o:ssl.key_file_path=/opt/ssl/powerai.key --o:ssl.ca_file_path=/opt/ssl/powerai_chain.crt --o:net.content_security_policy=frame-ancestors * --o:default_language=zh-CN" \
+  -e "aliasgroup1=https://powerai.cc:5103,https://powerai.cc:7866" \
   -v /home/tutu/ssl:/opt/ssl:ro \
   --restart unless-stopped \
   collabora/code:latest

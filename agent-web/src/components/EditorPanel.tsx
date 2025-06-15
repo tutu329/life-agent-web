@@ -153,8 +153,43 @@ const EditorPanel: React.FC = () => {
     switch (operation) {
       case 'insert_text':
         if (data && data.text) {
-          setReceivedMessages(prev => [...prev.slice(-9), data.text]) // 保留最近10条消息
+          setReceivedMessages(prev => [...prev.slice(-9), `插入文本: ${data.text.substring(0, 20)}...`]) // 保留最近10条消息
           insertTextToDocument(data.text)
+        }
+        break
+      
+      case 'search_and_replace':
+        if (data && data.search_text) {
+          setReceivedMessages(prev => [...prev.slice(-9), `替换'${data.search_text}'为'${data.replace_text}'`])
+          searchAndReplace(data.search_text, data.replace_text)
+        }
+        break
+        
+      case 'search_highlight':
+        if (data && data.search_text) {
+          setReceivedMessages(prev => [...prev.slice(-9), `高亮'${data.search_text}'`])
+          searchAndHighlight(data.search_text, data.highlight_color)
+        }
+        break
+
+      case 'format_text':
+        if (data && data.format_options) {
+          setReceivedMessages(prev => [...prev.slice(-9), `格式化文本`])
+          formatText(data.format_options)
+        }
+        break
+
+      case 'goto_bookmark':
+        if (data && data.bookmark_name) {
+          setReceivedMessages(prev => [...prev.slice(-9), `跳转到书签'${data.bookmark_name}'`])
+          gotoBookmark(data.bookmark_name)
+        }
+        break
+        
+      case 'insert_bookmark':
+        if (data && data.bookmark_name) {
+          setReceivedMessages(prev => [...prev.slice(-9), `插入书签'${data.bookmark_name}'`])
+          insertBookmark(data.bookmark_name)
         }
         break
       
@@ -162,6 +197,36 @@ const EditorPanel: React.FC = () => {
         console.warn('❌ 未知的Office操作:', operation)
     }
   }
+  
+  // Helper to convert color to UNO format (decimal integer BGR)
+  const getColorUnoValue = (colorStr: string): number => {
+    // Standard color names
+    const colorMap: { [key: string]: string } = {
+        'black': '#000000', 'white': '#FFFFFF', 'red': '#FF0000', 'green': '#00FF00', 'blue': '#0000FF',
+        'yellow': '#FFFF00', 'cyan': '#00FFFF', 'magenta': '#FF00FF', 'silver': '#C0C0C0', 'gray': '#808080',
+        'maroon': '#800000', 'olive': '#808000', 'purple': '#800080', 'teal': '#008080', 'navy': '#000080'
+    };
+
+    let hex = colorMap[colorStr.toLowerCase()] || colorStr;
+    
+    if (hex.startsWith('#')) {
+      hex = hex.substring(1);
+    }
+    if (hex.length === 3) {
+      hex = hex.split('').map(char => char + char).join('');
+    }
+    if (hex.length !== 6) {
+      console.warn(`Invalid color format: ${colorStr}. Defaulting to yellow.`);
+      return 16776960; // Default to yellow in BGR
+    }
+    
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+
+    // Convert RGB to BGR integer
+    return (b << 16) | (g << 8) | r;
+  };
   
   // 向Collabora CODE插入文本 - 使用官方API
   const insertTextToDocument = (text: string) => {
@@ -390,6 +455,117 @@ const EditorPanel: React.FC = () => {
     }, 2000)
   }
 
+  // --- 新增Office操作函数 ---
+
+  const searchAndReplace = (searchText: string, replaceText: string | undefined) => {
+    if (!iframeRef.current) return;
+    const command = {
+      MessageId: 'Send_UNO_Command',
+      SendTime: Date.now(),
+      Values: {
+        Command: '.uno:ExecuteSearch',
+        Args: {
+          SearchItem: {
+            type: '[]com.sun.star.beans.PropertyValue',
+            value: [
+              { Name: 'SearchText', Value: { type: 'string', value: searchText } },
+              { Name: 'ReplaceText', Value: { type: 'string', value: replaceText || '' } },
+              { Name: 'SearchAll', Value: { type: 'boolean', value: true } },
+            ],
+          },
+        },
+      },
+    };
+    console.log('🔄 执行搜索和替换:', command);
+    iframeRef.current.contentWindow?.postMessage(command, collaboraUrl);
+  };
+
+  const searchAndHighlight = (searchText: string, highlightColor: string = 'yellow') => {
+    if (!iframeRef.current) return;
+    const colorValue = getColorUnoValue(highlightColor);
+
+    const command = {
+      MessageId: 'Send_UNO_Command',
+      SendTime: Date.now(),
+      Values: {
+        Command: '.uno:ExecuteSearch',
+        Args: {
+          SearchItem: {
+            type: '[]com.sun.star.beans.PropertyValue',
+            value: [
+              { Name: 'SearchText', Value: { type: 'string', value: searchText } },
+              { Name: 'SearchAll', Value: { type: 'boolean', value: true } },
+              // Action after finding: apply background color
+              { Name: 'Action', Value: { type: 'short', value: 2 } }, // 2 = Replace
+              { Name: 'CharBackColor', Value: { type: 'long', value: colorValue } },
+            ],
+          },
+        },
+      },
+    };
+    
+    console.log('🎨 搜索并高亮:', command);
+    iframeRef.current.contentWindow?.postMessage(command, collaboraUrl);
+  };
+
+  const formatText = (options: any) => {
+    if (!iframeRef.current) return;
+
+    const sendUno = (command: string, args: object) => {
+      const message = {
+        MessageId: 'Send_UNO_Command',
+        SendTime: Date.now(),
+        Values: { Command: command, Args: args },
+      };
+      console.log(`🎨 应用格式化 ${command}:`, message);
+      iframeRef.current?.contentWindow?.postMessage(message, collaboraUrl);
+    };
+
+    if (options.font_name) {
+      sendUno('.uno:FontName', { Name: { type: 'string', value: options.font_name } });
+    }
+    if (options.font_size) {
+      sendUno('.uno:FontHeight', { Height: { type: 'float', value: options.font_size } });
+    }
+    if (options.color) {
+      sendUno('.uno:Color', { Color: { type: 'long', value: getColorUnoValue(options.color) } });
+    }
+    if (options.bold) {
+      sendUno('.uno:Bold', {});
+    }
+    if (options.italic) {
+      sendUno('.uno:Italic', {});
+    }
+    if (options.underline) {
+      sendUno('.uno:Underline', {});
+    }
+  };
+
+  const insertBookmark = (bookmarkName: string) => {
+    if (!iframeRef.current) return;
+    const command = {
+      MessageId: 'Send_UNO_Command',
+      SendTime: Date.now(),
+      Values: {
+        Command: '.uno:InsertBookmark',
+        Args: { Name: { type: 'string', value: bookmarkName } },
+      },
+    };
+    console.log('🔖 插入书签:', command);
+    iframeRef.current.contentWindow?.postMessage(command, collaboraUrl);
+  };
+
+  const gotoBookmark = (bookmarkName: string) => {
+    if (!iframeRef.current) return;
+    const command = {
+        MessageId: 'Navigate_To_Bookmark',
+        SendTime: Date.now(),
+        Values: { Bookmark: bookmarkName }
+    };
+    console.log('🚀 跳转到书签:', command);
+    iframeRef.current.contentWindow?.postMessage(command, collaboraUrl);
+  };
+  
   const items = [
     {
       key: '1',
