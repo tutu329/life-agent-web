@@ -135,6 +135,8 @@ const InteractionPanel: React.FC = () => {
     
     try {
       for await (const event of agentService.listenToStream(streamId, streamName)) {
+        console.log(`📨 收到流 ${streamName} 数据:`, event.data.substring(0, 100) + (event.data.length > 100 ? '...' : ''))
+        
         // 更新对应的消息内容 - 严格匹配messageId
         setMessages(prev => {
           return prev.map(msg => {
@@ -153,6 +155,8 @@ const InteractionPanel: React.FC = () => {
                 ...currentStreamData,
                 [streamName]: currentStreamData[streamName] + event.data
               }
+              
+              console.log(`📊 更新流数据 ${streamName}:`, updatedStreamData[streamName].substring(0, 50) + (updatedStreamData[streamName].length > 50 ? '...' : ''))
               
               return {
                 ...msg,
@@ -250,21 +254,24 @@ const InteractionPanel: React.FC = () => {
       // 发送查询请求
       const streamResponse = await agentService.queryAgentSystem(query)
       console.log('📡 获得流响应:', streamResponse)
+      console.log('🔄 可用流列表:', streamResponse.streams)
       
       // 更新消息显示流信息
       setMessages(prev => prev.map(msg => 
         msg.id === agentMessageId 
           ? { 
               ...msg, 
-              content: `🤖 Agent系统正在处理您的请求...\n\n📡 获得流ID: ${streamResponse.id}\n🔄 可用流: ${streamResponse.streams.join(', ')}`
+              content: `🤖 Agent系统正在处理您的请求...\n\n📡 获得流ID: ${streamResponse.id}\n🔄 可用流: ${streamResponse.streams.join(', ')}\n📊 共${streamResponse.streams.length}个流`
             }
           : msg
       ))
 
       // 开始监听所有可用的流
-      const streamPromises = streamResponse.streams.map(streamName => 
-        listenToStream(streamResponse.id, streamName as StreamType, agentMessageId)
-      )
+      console.log('🚀 开始监听流，数量:', streamResponse.streams.length)
+      const streamPromises = streamResponse.streams.map(streamName => {
+        console.log(`🎯 准备监听流: ${streamName}`)
+        return listenToStream(streamResponse.id, streamName as StreamType, agentMessageId)
+      })
 
       // 等待所有流完成或开始监听Agent状态
       Promise.all(streamPromises).then(() => {
@@ -511,9 +518,11 @@ const InteractionPanel: React.FC = () => {
   const renderAgentStreamsBox = (streamData: Message['streamData'], isStreaming?: boolean, messageId?: number) => {
     if (!streamData) return null
     
-    // 检查是否有除了final_answer之外的流数据
-    const hasStreamData = streamData.output || streamData.thinking || streamData.log || streamData.tool_rtn_data
-    if (!hasStreamData) return null
+    // 检查是否有流程数据（不包括final_answer）
+    const hasProcessData = streamData.output || streamData.thinking || streamData.log || streamData.tool_rtn_data
+    
+    // 只有真正有流程数据时才显示，不要因为isStreaming就显示
+    if (!hasProcessData) return null
     
     let displayContent = ''
     
@@ -535,17 +544,13 @@ const InteractionPanel: React.FC = () => {
     }
     
     displayContent = displayContent.trim()
-    
-    if (!displayContent && isStreaming) {
-      displayContent = 'Agent处理中...'
-    }
 
     const agentStreamItems = [
       {
         key: `agent-streams-${messageId}`, // 使用messageId确保唯一性
         label: (
           <span style={{ fontSize: '12px', color: '#722ed1' }}>
-            Agent流程详情
+            Agent流程详情 {isStreaming && <span style={{ color: '#52c41a' }}>●</span>}
           </span>
         ),
         children: (
@@ -669,22 +674,38 @@ const InteractionPanel: React.FC = () => {
                     
                     {/* Final Answer 单独显示 */}
                     {message.streamData?.final_answer && (
-                      <Paragraph 
-                        key={`final-answer-${message.id}`} // 添加唯一key
-                        style={{ 
-                          margin: 0, 
-                          whiteSpace: 'pre-wrap',
-                          wordBreak: 'break-word',
-                          color: '#000',
-                          backgroundColor: '#fff',
-                          padding: '12px',
-                          borderRadius: '6px',
-                          border: '2px solid #52c41a',
-                          borderLeft: '4px solid #52c41a'
-                        }}
-                      >
-                        {message.streamData.final_answer}
-                      </Paragraph>
+                      <div style={{ marginTop: '12px' }}>
+                        <div style={{ 
+                          fontSize: '14px', 
+                          fontWeight: 'bold', 
+                          color: '#52c41a', 
+                          marginBottom: '8px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}>
+                          ✅ Agent最终回答
+                        </div>
+                        <Paragraph 
+                          key={`final-answer-${message.id}`} // 添加唯一key
+                          style={{ 
+                            margin: 0, 
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-word',
+                            color: '#000',
+                            backgroundColor: '#f6ffed',
+                            padding: '16px',
+                            borderRadius: '8px',
+                            border: '2px solid #52c41a',
+                            borderLeft: '4px solid #52c41a',
+                            fontSize: '14px',
+                            lineHeight: '1.6',
+                            boxShadow: '0 2px 4px rgba(82, 196, 26, 0.1)'
+                          }}
+                        >
+                          {message.streamData.final_answer}
+                        </Paragraph>
+                      </div>
                     )}
                   </div>
                 ) : (
