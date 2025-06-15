@@ -59,6 +59,7 @@ const InteractionPanel: React.FC = () => {
   // 当前活跃的流监听器
   const activeStreamsRef = useRef<Set<string>>(new Set())
   const streamsInitializedRef = useRef(false) // 标志位，跟踪流是否已初始化
+  const currentAgentMessageIdRef = useRef<number | null>(null) // 跟踪当前Agent消息ID
   
   // Agent状态检查相关
   const [currentTaskMessageId, setCurrentTaskMessageId] = useState<number | null>(null)
@@ -124,24 +125,27 @@ const InteractionPanel: React.FC = () => {
   }
 
   // 监听单个SSE流
-  const listenToStream = async (streamId: string, streamName: StreamType, messageId: number) => {
-    const streamKey = `${streamId}-${streamName}-${messageId}` // 加入messageId确保唯一性
+  const listenToStream = async (streamId: string, streamName: StreamType) => {
+    const streamKey = `${streamId}-${streamName}` // key不应包含可变部分
     if (activeStreamsRef.current.has(streamKey)) {
       console.log(`流 ${streamName} 已在监听中，跳过重复监听`)
       return
     }
     
     activeStreamsRef.current.add(streamKey)
-    console.log(`🔗 开始监听流: ${streamName}, 目标消息ID: ${messageId}`)
+    console.log(`🔗 开始永久监听流: ${streamName}`)
     
     try {
       for await (const event of agentService.listenToStream(streamId, streamName)) {
-        console.log(`📨 收到流 ${streamName} 数据:`, event.data.substring(0, 100) + (event.data.length > 100 ? '...' : ''))
+        // console.log(`📨 收到流 ${streamName} 数据:`, event.data.substring(0, 100) + (event.data.length > 100 ? '...' : ''))
         
-        // 更新对应的消息内容 - 严格匹配messageId
+        // 更新当前活跃的Agent消息
         setMessages(prev => {
+          const activeMessageId = currentAgentMessageIdRef.current
+          if (!activeMessageId) return prev
+
           return prev.map(msg => {
-            if (msg.id === messageId && msg.isAgentMode) {
+            if (msg.id === activeMessageId && msg.isAgentMode) {
               // 确保初始化streamData，避免复用之前的数据
               const currentStreamData = msg.streamData || {
                 output: '',
@@ -157,7 +161,7 @@ const InteractionPanel: React.FC = () => {
                 [streamName]: currentStreamData[streamName] + event.data
               }
               
-              console.log(`📊 更新流数据 ${streamName}:`, updatedStreamData[streamName].substring(0, 50) + (updatedStreamData[streamName].length > 50 ? '...' : ''))
+              // console.log(`📊 更新流数据 ${streamName} for message ${activeMessageId}:`, updatedStreamData[streamName].substring(0, 50) + (updatedStreamData[streamName].length > 50 ? '...' : ''))
               
               return {
                 ...msg,
@@ -171,9 +175,11 @@ const InteractionPanel: React.FC = () => {
       }
     } catch (error) {
       console.error(`❌ 流 ${streamName} 监听出错:`, error)
-    } finally {
+      // 流断开后，允许在下次查询时重建
+      streamsInitializedRef.current = false
       activeStreamsRef.current.delete(streamKey)
-      console.log(`📡 流 ${streamName} 监听结束，消息ID: ${messageId}`)
+    } finally {
+      console.log(`📡 流 ${streamName} 监听结束。`)
     }
   }
 
@@ -225,16 +231,14 @@ const InteractionPanel: React.FC = () => {
     try {
       console.log('🚀 发送查询到Agent系统:', query)
       
-      // 清理所有之前的流监听，避免数据混乱
-      console.log('🧹 清理之前的流监听器...')
-      activeStreamsRef.current.clear()
-      
       // 清理之前的状态检查
       console.log('🧹 清理之前的状态检查...')
       stopStatusCheck()
       
       // 创建Agent响应消息 - 确保每次都是全新的消息ID和初始化状态
       const agentMessageId = Date.now() + Math.floor(Math.random() * 10000) // 更好的唯一性保证
+      currentAgentMessageIdRef.current = agentMessageId // 更新当前活跃的Agent消息ID
+
       const initialAgentMessage: Message = {
         id: agentMessageId,
         content: '🤖 Agent系统正在处理您的请求...\n\n',
@@ -274,10 +278,7 @@ const InteractionPanel: React.FC = () => {
         console.log('🚀 开始监听流，数量:', streamResponse.streams.length)
         const streamPromises = streamResponse.streams.map(streamName => {
           console.log(`🎯 准备监听流: ${streamName}`)
-          // 注意：我们将把所有未来流数据都导向当前的agentMessageId
-          // 这是一个简化处理，因为流是持续的。
-          // 在一个更复杂的场景中，可能需要更精细的状态管理来区分不同任务的数据。
-          return listenToStream(streamResponse.id, streamName as StreamType, agentMessageId)
+          return listenToStream(streamResponse.id, streamName as StreamType)
         })
 
         // 等待所有流完成或开始监听Agent状态
@@ -458,13 +459,8 @@ const InteractionPanel: React.FC = () => {
   const handleAgentModeChange = (checked: boolean) => {
     setUseAgentMode(checked)
     if (!checked) {
-      // 关闭Agent模式时清理状态
-      setAgentInitialized(false)
-      setAgentId(null)
-      agentService.resetAgentId()
-      activeStreamsRef.current.clear()
-      streamsInitializedRef.current = false // 重置流初始化标志
-      stopStatusCheck() // 清理状态检查
+      // 从Agent模式切换走时，只停止状态检查，不重置Agent或流的状态
+      stopStatusCheck()
     }
   }
 

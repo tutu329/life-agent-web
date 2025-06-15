@@ -21,7 +21,8 @@ agent-web项目注意事项：
     e）记得要让CODE控件界面设置为简体中文。
     f）向docx成功注入信息的关键见agent-web/src/components/code_api关键.txt。
     g）后台的web socket之类的全局dict管理，一定要注意python的不同模块导入导致的全局变量不唯一的问题，解决办法是将入Office_Tool这种多次导入的文件中的web socket管理类放到单独的如utils/web_socket_manager.py这类独立文件中仅暴露get_socket_manager()提供全局量引用
-    h）前端调用后端agent可能存在超时机制不匹配问题，后台目前agent超时设置了3600秒。另外要谨防cursor自说自话在agent完成部分任务时自己就结束前端任务了,claude处理前端超时机制也比较弱，像查询status这种2个前端都会相互死锁，一开始去掉超时机制就行。
+    h）前端调用后端agent可能存在超时机制不匹配问题，后台目前agent超时设置了3600秒。
+    i）前端向后台发起连接时，一个浏览器限制连接大概6个，因此streams和所有post连接不能超，特别是streams一定不能每次query或其他操作新增，否则如await fetch(/api/get_agent_status)这种基本操作都会挂起。
 ）
 5）powerai.cc上如果要调用python要这样：
 source /home/tutu/anaconda3/etc/profile.d/conda.sh
