@@ -58,6 +58,7 @@ const InteractionPanel: React.FC = () => {
   
   // 当前活跃的流监听器
   const activeStreamsRef = useRef<Set<string>>(new Set())
+  const streamsInitializedRef = useRef(false) // 标志位，跟踪流是否已初始化
   
   // Agent状态检查相关
   const [currentTaskMessageId, setCurrentTaskMessageId] = useState<number | null>(null)
@@ -254,29 +255,51 @@ const InteractionPanel: React.FC = () => {
       // 发送查询请求
       const streamResponse = await agentService.queryAgentSystem(query)
       console.log('📡 获得流响应:', streamResponse)
-      console.log('🔄 可用流列表:', streamResponse.streams)
-      
-      // 更新消息显示流信息
-      setMessages(prev => prev.map(msg => 
-        msg.id === agentMessageId 
-          ? { 
-              ...msg, 
-              content: `🤖 Agent系统正在处理您的请求...\n\n📡 获得流ID: ${streamResponse.id}\n🔄 可用流: ${streamResponse.streams.join(', ')}\n📊 共${streamResponse.streams.length}个流`
-            }
-          : msg
-      ))
 
-      // 开始监听所有可用的流
-      console.log('🚀 开始监听流，数量:', streamResponse.streams.length)
-      const streamPromises = streamResponse.streams.map(streamName => {
-        console.log(`🎯 准备监听流: ${streamName}`)
-        return listenToStream(streamResponse.id, streamName as StreamType, agentMessageId)
-      })
+      // 只有在流尚未初始化时，才启动新的监听器
+      if (!streamsInitializedRef.current) {
+        console.log('🔄 可用流列表:', streamResponse.streams)
+        
+        // 更新消息显示流信息
+        setMessages(prev => prev.map(msg => 
+          msg.id === agentMessageId 
+            ? { 
+                ...msg, 
+                content: `🤖 Agent系统正在处理您的请求...\n\n📡 获得流ID: ${streamResponse.id}\n🔄 可用流: ${streamResponse.streams.join(', ')}\n📊 共${streamResponse.streams.length}个流`
+              }
+            : msg
+        ))
 
-      // 等待所有流完成或开始监听Agent状态
-      Promise.all(streamPromises).then(() => {
-        console.log('📡 所有流监听已开始')
-      })
+        // 开始监听所有可用的流
+        console.log('🚀 开始监听流，数量:', streamResponse.streams.length)
+        const streamPromises = streamResponse.streams.map(streamName => {
+          console.log(`🎯 准备监听流: ${streamName}`)
+          // 注意：我们将把所有未来流数据都导向当前的agentMessageId
+          // 这是一个简化处理，因为流是持续的。
+          // 在一个更复杂的场景中，可能需要更精细的状态管理来区分不同任务的数据。
+          return listenToStream(streamResponse.id, streamName as StreamType, agentMessageId)
+        })
+
+        // 等待所有流完成或开始监听Agent状态
+        Promise.all(streamPromises).then(() => {
+          console.log('📡 所有流监听已开始')
+        })
+
+        // 标记流已初始化
+        streamsInitializedRef.current = true
+      } else {
+        console.log('♻️ 复用现有流连接，仅发送新查询。')
+        // 对于已经存在的流，我们假设它们会接收到新查询的数据。
+        // 我们需要用新的查询信息来更新UI
+        setMessages(prev => prev.map(msg => 
+          msg.id === agentMessageId 
+            ? { 
+                ...msg, 
+                content: `🤖 Agent系统正在处理您的请求...\n\n♻️ 复用流ID: ${streamResponse.id}`
+              }
+            : msg
+        ))
+      }
 
       // 持久的Agent状态检查函数
       startStatusCheck(agentMessageId)
@@ -440,6 +463,7 @@ const InteractionPanel: React.FC = () => {
       setAgentId(null)
       agentService.resetAgentId()
       activeStreamsRef.current.clear()
+      streamsInitializedRef.current = false // 重置流初始化标志
       stopStatusCheck() // 清理状态检查
     }
   }
@@ -518,8 +542,8 @@ const InteractionPanel: React.FC = () => {
   const renderAgentStreamsBox = (streamData: Message['streamData'], isStreaming?: boolean, messageId?: number) => {
     if (!streamData) return null
     
-    // 检查是否有流程数据（不包括final_answer）
-    const hasProcessData = streamData.output || streamData.thinking || streamData.log || streamData.tool_rtn_data
+    // 检查是否有流程数据（只处理output和thinking，暂时关掉其他）
+    const hasProcessData = streamData.output || streamData.thinking
     
     // 只有真正有流程数据时才显示，不要因为isStreaming就显示
     if (!hasProcessData) return null
@@ -533,14 +557,6 @@ const InteractionPanel: React.FC = () => {
     if (streamData.thinking) {
       const thinkingStyle = getStreamStyle('thinking')
       displayContent += `${thinkingStyle.icon} [THINKING]\n${streamData.thinking}\n\n`
-    }
-    if (streamData.log) {
-      const logStyle = getStreamStyle('log')
-      displayContent += `${logStyle.icon} [LOG]\n${streamData.log}\n\n`
-    }
-    if (streamData.tool_rtn_data) {
-      const toolStyle = getStreamStyle('tool_rtn_data')
-      displayContent += `${toolStyle.icon} [TOOL_RTN_DATA]\n${streamData.tool_rtn_data}\n\n`
     }
     
     displayContent = displayContent.trim()
@@ -675,17 +691,6 @@ const InteractionPanel: React.FC = () => {
                     {/* Final Answer 单独显示 */}
                     {message.streamData?.final_answer && (
                       <div style={{ marginTop: '12px' }}>
-                        <div style={{ 
-                          fontSize: '14px', 
-                          fontWeight: 'bold', 
-                          color: '#52c41a', 
-                          marginBottom: '8px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px'
-                        }}>
-                          ✅ Agent最终回答
-                        </div>
                         <Paragraph 
                           key={`final-answer-${message.id}`} // 添加唯一key
                           style={{ 
