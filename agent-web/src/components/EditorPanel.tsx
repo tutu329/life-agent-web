@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { Tabs, Alert, Button, message, Badge } from 'antd'
 import { BarChartOutlined, FileTextOutlined, ReloadOutlined, WifiOutlined } from '@ant-design/icons'
 import { useAgentContext } from '../App'
@@ -193,6 +193,25 @@ const EditorPanel: React.FC = () => {
         }
         break
       
+      case 'call_raw_command':
+        if (data && iframeRef.current) {
+          // 如果文档尚未就绪，则延迟1秒后再次尝试发送此指令
+          if (!documentReady) {
+            console.log('⏳ 文档尚未就绪，1秒后将重试原始指令:', data.MessageId);
+            setTimeout(() => {
+              console.log('🔄 重试发送原始指令:', data.MessageId);
+              iframeRef.current?.contentWindow?.postMessage(data, collaboraUrl);
+            }, 1000);
+            return;
+          }
+
+          const messageId = data.MessageId || '未知指令';
+          setReceivedMessages(prev => [...prev.slice(-9), `原始指令: ${messageId}`]);
+          console.log('🔧 执行原始指令:', data);
+          iframeRef.current.contentWindow?.postMessage(data, collaboraUrl);
+        }
+        break;
+      
       default:
         console.warn('❌ 未知的Office操作:', operation)
     }
@@ -353,19 +372,15 @@ const EditorPanel: React.FC = () => {
         console.log('📩 收到来自Collabora CODE的消息:', data)
         
         // 根据消息类型处理文档状态
-        if (data.MessageId === 'Action_Load_Resp') {
-          console.log('📄 文档加载响应，可以开始插入文本')
-          setDocumentReady(true)
+        if (data.MessageId === 'Action_Load_Resp' || data.MessageId === 'View_Added' || (data.MessageId === 'App_LoadingStatus' && data.Values?.Status === 'Document_Loaded')) {
+          if (!documentReady) { // 仅在状态从未就绪 -> 就绪时打印日志
+            console.log('✅✅✅ 文档已完全准备就绪，可以接收指令！✅✅✅')
+            setDocumentReady(true)
+          }
           // 文档加载完成后，再次发送Host_PostmessageReady确保通信建立
           setTimeout(() => {
             sendHostReady()
           }, 1000)
-        } else if (data.MessageId === 'View_Added') {
-          console.log('📄 视图已添加，文档准备就绪')
-          setDocumentReady(true)
-        } else if (data.MessageId === 'App_LoadingStatus' && data.Values?.Status === 'Document_Loaded') {
-          console.log('📄 应用加载状态：文档已加载')
-          setDocumentReady(true)
         }
       } catch (error) {
         console.log('📩 收到来自iframe的原始消息:', event.data)
@@ -422,7 +437,7 @@ const EditorPanel: React.FC = () => {
       `access_token=${accessToken}&` +
       `lang=zh-CN`
     
-    // 只在第一次生成时记录日志，避免重复刷屏
+    // 日志只在首次生成时打印，避免 useMemo 依赖变化时重复打印
     if (!(window as any)._wopiUrlLogged) {
       console.log('🔗 生成的 WOPI URL (HTTPS):', url)
       console.log('📋 WOPI Source:', wopiSrc)
@@ -432,6 +447,9 @@ const EditorPanel: React.FC = () => {
     
     return url
   }
+
+  // 使用 useMemo 优化 URL 的生成，确保只在 agentId 变化时才重新计算
+  const wopiUrl = useMemo(() => createNewDocument(), [agentId])
 
   const handleIframeError = () => {
     setIframeError(true)
@@ -702,7 +720,7 @@ const EditorPanel: React.FC = () => {
                 ref={iframeRef}
                 key={iframeKey}
                 id={uniqueId}
-                src={createNewDocument()}
+                src={wopiUrl}
                 style={{
                   width: '100%',
                   height: '100%',
