@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { Tabs, Alert, Button, message, Badge } from 'antd'
-import { BarChartOutlined, FileTextOutlined, ReloadOutlined, WifiOutlined } from '@ant-design/icons'
+import { BarChartOutlined, FileTextOutlined, ReloadOutlined, WifiOutlined, SketchOutlined } from '@ant-design/icons'
 import { useAgentContext } from '../App'
 
 const EditorPanel: React.FC = () => {
@@ -735,6 +735,33 @@ const EditorPanel: React.FC = () => {
               />
             </div>
           )}
+        </div>
+      ),
+    },
+    {
+      key: '3',
+      label: (
+        <span>
+          <SketchOutlined />
+          图纸绘制
+        </span>
+      ),
+      children: (
+        <div style={{ 
+          padding: '24px', 
+          height: 'calc(100vh - 120px)', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          background: '#fafafa',
+          border: '2px dashed #d9d9d9',
+          borderRadius: '8px'
+        }}>
+          <div style={{ textAlign: 'center', color: '#8c8c8c' }}>
+            <SketchOutlined style={{ fontSize: '48px', marginBottom: '16px' }} />
+            <h2 style={{ color: '#1677ff', marginBottom: '8px' }}>图纸绘制功能区</h2>
+            <p>功能开发中，敬请期待...</p>
+          </div>
         </div>
       ),
     },
