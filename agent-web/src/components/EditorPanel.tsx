@@ -352,10 +352,7 @@ const EditorPanel: React.FC = () => {
     if (agentId) {
       console.log('📝 Agent ID已可用，初始化WebSocket连接:', agentId)
       initWebSocket()
-      
-      // 重新加载iframe以使用独立的文档
-      console.log('🔄 重新加载文档编辑器以使用独立文档')
-      setIframeKey(prev => prev + 1)
+      // 注意：不再重新加载iframe，文档只在首次加载时创建
     } else {
       console.log('⏳ 等待Agent ID...')
     }
@@ -416,18 +413,8 @@ const EditorPanel: React.FC = () => {
 
   // 使用 Collabora CODE 的 WOPI 协议
   const createNewDocument = () => {
-    // 为每个Agent会话创建独立的文档ID，避免协同编辑冲突
-    let fileId = 'empty.docx' // 默认文档
-    
-    if (agentId) {
-      // 如果有agentId，使用它创建独立的文档ID
-      fileId = `agent_doc_${agentId.substring(0, 8)}.docx`
-      console.log(`📄 为Agent ${agentId} 创建独立文档: ${fileId}`)
-    } else {
-      // 如果没有agentId，使用唯一ID避免冲突
-      fileId = `temp_doc_${uniqueId}.docx`
-      console.log(`📄 创建临时文档: ${fileId}`)
-    }
+    // 使用固定的文档ID，确保文档只加载一次，所有Agent共享同一个文档
+    const fileId = 'empty.docx' // 固定使用默认文档
     
     const accessToken = 'demo_token'
     const wopiSrc = `${wopiServerUrl}/wopi/files/${fileId}`
@@ -438,19 +425,20 @@ const EditorPanel: React.FC = () => {
       `access_token=${accessToken}&` +
       `lang=zh-CN`
     
-    // 日志只在首次生成时打印，避免 useMemo 依赖变化时重复打印
+    // 日志只在首次生成时打印，避免重复打印
     if (!(window as any)._wopiUrlLogged) {
       console.log('🔗 生成的 WOPI URL (HTTPS):', url)
       console.log('📋 WOPI Source:', wopiSrc)
       console.log('🔑 Access Token:', accessToken)
+      console.log('📄 使用固定文档ID:', fileId)
       ;(window as any)._wopiUrlLogged = true
     }
     
     return url
   }
 
-  // 使用 useMemo 优化 URL 的生成，确保只在 agentId 变化时才重新计算
-  const wopiUrl = useMemo(() => createNewDocument(), [agentId])
+  // 使用 useMemo 优化 URL 的生成，确保只在组件首次挂载时计算一次
+  const wopiUrl = useMemo(() => createNewDocument(), [])
 
   const handleIframeError = () => {
     setIframeError(true)

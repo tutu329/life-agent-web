@@ -232,7 +232,6 @@ const InteractionPanel: React.FC = () => {
       console.log('🚀 发送查询到Agent系统:', query)
       
       // 清理之前的状态检查
-      console.log('🧹 清理之前的状态检查...')
       stopStatusCheck()
       
       // 创建Agent响应消息 - 确保每次都是全新的消息ID和初始化状态
