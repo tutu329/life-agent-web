@@ -190,12 +190,14 @@ function App() {
   // 处理触摸事件 - 为iPad等触摸设备提供支持
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     e.preventDefault()
+    e.stopPropagation()
     setIsResizing(true)
     
     const startX = e.touches[0].clientX
     const startWidth = rightSiderWidth
     
     const handleTouchMove = (e: TouchEvent) => {
+      e.preventDefault()
       if (e.touches.length > 0) {
         const deltaX = startX - e.touches[0].clientX
         const newWidth = Math.max(200, Math.min(800, startWidth + deltaX)) // 放宽拖拽范围
@@ -203,14 +205,16 @@ function App() {
       }
     }
     
-    const handleTouchEnd = () => {
+    const handleTouchEnd = (e: TouchEvent) => {
+      e.preventDefault()
       setIsResizing(false)
       document.removeEventListener('touchmove', handleTouchMove)
       document.removeEventListener('touchend', handleTouchEnd)
     }
     
-    document.addEventListener('touchmove', handleTouchMove, { passive: false })
-    document.addEventListener('touchend', handleTouchEnd)
+    // 使用更积极的事件监听配置
+    document.addEventListener('touchmove', handleTouchMove, { passive: false, capture: true })
+    document.addEventListener('touchend', handleTouchEnd, { passive: false, capture: true })
   }, [rightSiderWidth])
 
   // 切换左侧栏折叠状态
@@ -413,8 +417,8 @@ function App() {
               {/* 可拖拽的分割线 */}
               <div
                 style={{
-                  width: screenWidth <= 1024 ? '12px' : '4px', // iPad等触摸设备使用更宽的触摸区域
-                  background: isResizing ? '#94a3b8' : (screenWidth <= 1024 ? 'rgba(203, 213, 225, 0.3)' : 'transparent'),
+                  width: screenWidth <= 1024 ? '16px' : '4px', // iPad等触摸设备使用更宽的触摸区域
+                  background: isResizing ? '#94a3b8' : (screenWidth <= 1024 ? 'rgba(203, 213, 225, 0.5)' : 'transparent'),
                   cursor: 'col-resize',
                   position: 'absolute',
                   left: 0,
@@ -426,10 +430,16 @@ function App() {
                   touchAction: 'none', // 阻止所有默认触摸行为
                   userSelect: 'none',
                   WebkitUserSelect: 'none',
+                  MozUserSelect: 'none',
+                  msUserSelect: 'none',
                   // 添加视觉提示
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center'
+                  justifyContent: 'center',
+                  // 确保在iPad上始终可见和可交互
+                  minWidth: screenWidth <= 1024 ? '16px' : '4px',
+                  opacity: screenWidth <= 1024 ? 1 : (isResizing ? 1 : 0.3),
+                  transition: 'all 0.2s ease'
                 }}
                 onMouseDown={handleMouseDown}
                 onTouchStart={handleTouchStart}
@@ -438,11 +448,12 @@ function App() {
                 {/* 在触摸设备上显示拖拽指示器 */}
                 {screenWidth <= 1024 && (
                   <div style={{
-                    width: '2px',
-                    height: '30px',
-                    background: '#94a3b8',
-                    borderRadius: '1px',
-                    opacity: 0.6
+                    width: '3px',
+                    height: '40px',
+                    background: isResizing ? '#475569' : '#94a3b8',
+                    borderRadius: '2px',
+                    opacity: 0.8,
+                    transition: 'all 0.2s ease'
                   }} />
                 )}
               </div>

@@ -250,17 +250,17 @@ html, body {
 /* Agent流程详情框样式 */
 .agent-streams-collapse .ant-collapse-header {
   padding: 8px 12px !important;
-  background: #f9f0ff !important;
-  border: 1px solid #d3adf7;
+  background: #f8f9fa !important;
+  border: 1px solid #e9ecef;
   border-radius: 8px;
   margin-bottom: 4px;
   transition: all 0.2s ease;
 }
 
 .agent-streams-collapse .ant-collapse-header:hover {
-  background: #f0e6ff !important;
-  border-color: #b37feb;
-  box-shadow: 0 2px 4px rgba(114, 46, 209, 0.1);
+  background: #e9ecef !important;
+  border-color: #dee2e6;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
 .agent-streams-collapse .ant-collapse-content {
@@ -269,12 +269,12 @@ html, body {
 }
 
 .agent-streams-collapse .ant-collapse-content-box {
-  padding: 8px 12px !important;
-  background: #fafafa;
-  border: 1px solid #d3adf7;
+  padding: 12px !important;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
   border-radius: 8px;
   margin-top: -4px;
-  box-shadow: 0 1px 3px rgba(114, 46, 209, 0.05);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 /* 自定义滚动条样式 */

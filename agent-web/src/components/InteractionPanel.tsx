@@ -560,7 +560,7 @@ const InteractionPanel: React.FC = () => {
       {
         key: `agent-streams-${messageId}`, // 使用messageId确保唯一性
         label: (
-          <span style={{ fontSize: '12px', color: '#722ed1' }}>
+          <span style={{ fontSize: '12px', color: '#666666' }}>
             Agent流程详情 {isStreaming && <span style={{ color: '#52c41a' }}>●</span>}
           </span>
         ),
@@ -573,10 +573,10 @@ const InteractionPanel: React.FC = () => {
               whiteSpace: 'pre-wrap',
               maxHeight: '300px',
               overflow: 'auto',
-              backgroundColor: '#f9f0ff',
-              padding: '8px',
-              borderRadius: '4px',
-              border: '1px solid #d3adf7'
+              backgroundColor: '#f8f9fa',
+              padding: '12px',
+              borderRadius: '6px',
+              border: '1px solid #e9ecef'
             }}
           >
             {displayContent}
@@ -594,12 +594,12 @@ const InteractionPanel: React.FC = () => {
           expandIcon={({ isActive }) => (
             <CaretRightOutlined 
               rotate={isActive ? 90 : 0} 
-              style={{ fontSize: '10px', color: '#722ed1' }}
+              style={{ fontSize: '10px', color: '#666666' }}
             />
           )}
           style={{
-            backgroundColor: '#f9f0ff',
-            border: '1px solid #d3adf7',
+            backgroundColor: '#f8f9fa',
+            border: '1px solid #e9ecef',
             borderRadius: '6px',
           }}
           className="agent-streams-collapse"
@@ -692,15 +692,9 @@ const InteractionPanel: React.FC = () => {
                             margin: 0, 
                             whiteSpace: 'pre-wrap',
                             wordBreak: 'break-word',
-                            color: '#000',
-                            backgroundColor: '#f6ffed',
-                            padding: '16px',
-                            borderRadius: '8px',
-                            border: '2px solid #52c41a',
-                            borderLeft: '4px solid #52c41a',
+                            color: 'inherit',
                             fontSize: '14px',
-                            lineHeight: '1.6',
-                            boxShadow: '0 2px 4px rgba(82, 196, 26, 0.1)'
+                            lineHeight: '1.6'
                           }}
                         >
                           {message.streamData.final_answer}
