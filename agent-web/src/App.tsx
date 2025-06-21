@@ -296,59 +296,69 @@ function App() {
           agentInitialized,
           setAgentInitialized
         }}>
-          <Layout style={{ height: '100vh' }}>
+          <Layout style={{ 
+            height: '100vh',
+            minHeight: screenWidth <= 1024 ? 'calc(100vh - env(safe-area-inset-top, 0px))' : '100vh' // iPad安全区域适配
+          }}>
           {/* 顶部 Header */}
           <Header style={{ 
             background: '#f8fafc', 
-            padding: '0 8px', 
-            height: screenWidth <= 1024 ? '48px' : '24px', // iPad等触摸设备使用更高的Header
-            lineHeight: screenWidth <= 1024 ? '48px' : '24px',
-            minHeight: screenWidth <= 1024 ? '48px' : '24px',
+            padding: '0', // 移除所有内边距，让内部容器处理布局
+            height: screenWidth <= 1024 ? `calc(52px + env(safe-area-inset-top, 0px))` : '28px', // 总高度包含安全区域
+            minHeight: screenWidth <= 1024 ? `calc(52px + env(safe-area-inset-top, 0px))` : '28px',
             borderBottom: '1px solid #e2e8f0',
             position: 'relative',
             boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-            // 为iPad等设备添加安全区域支持
-            paddingTop: screenWidth <= 1024 ? 'env(safe-area-inset-top, 0px)' : '0',
-            zIndex: 1000 // 确保Header在最上层
+            zIndex: 1000, // 确保Header在最上层
+            display: 'flex',
+            alignItems: 'stretch' // 让内部容器拉伸填满
           }}>
-            {/* 左侧折叠按钮 */}
-            <div style={{ 
-              position: 'absolute',
-              left: '8px',
-              top: '50%',
-              transform: 'translateY(-50%)'
+            {/* 内容容器 - 处理安全区域和内容居中 */}
+            <div style={{
+              width: '100%',
+              height: '100%',
+              paddingTop: screenWidth <= 1024 ? 'env(safe-area-inset-top, 0px)' : '0',
+              paddingLeft: '8px',
+              paddingRight: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              position: 'relative'
             }}>
+              {/* 左侧折叠按钮 */}
               <Button 
                 type="text" 
                 icon={leftSiderCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
                 onClick={toggleLeftSider}
                 style={{ 
                   fontSize: screenWidth <= 1024 ? '16px' : '11px', 
-                  height: screenWidth <= 1024 ? '40px' : '20px', 
+                  height: screenWidth <= 1024 ? '36px' : '20px', 
                   padding: screenWidth <= 1024 ? '0 12px' : '0 6px',
-                  minWidth: screenWidth <= 1024 ? '40px' : 'auto' // 确保触摸区域足够大
+                  minWidth: screenWidth <= 1024 ? '36px' : 'auto',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
                 }}
                 size={screenWidth <= 1024 ? 'middle' : 'small'}
                 title={leftSiderCollapsed ? '展开资源面板' : '收起资源面板'}
               />
-            </div>
-            
-            {/* 设置按钮 - 绝对定位在右边 */}
-            <div style={{ 
-              position: 'absolute',
-              right: '8px',
-              top: '50%',
-              transform: 'translateY(-50%)'
-            }}>
+              
+              {/* 中间空白区域 */}
+              <div style={{ flex: 1 }} />
+              
+              {/* 右侧设置按钮 */}
               <Button 
                 type="text" 
                 icon={<SettingOutlined />} 
                 onClick={showSettingsModal}
                 style={{ 
                   fontSize: screenWidth <= 1024 ? '16px' : '11px', 
-                  height: screenWidth <= 1024 ? '40px' : '20px', 
+                  height: screenWidth <= 1024 ? '36px' : '20px', 
                   padding: screenWidth <= 1024 ? '0 12px' : '0 6px',
-                  minWidth: screenWidth <= 1024 ? '60px' : 'auto' // 确保设置按钮触摸区域足够大
+                  minWidth: screenWidth <= 1024 ? '60px' : 'auto',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
                 }}
                 size={screenWidth <= 1024 ? 'middle' : 'small'}
               >

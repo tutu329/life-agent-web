@@ -3,12 +3,38 @@
   background: #ffffff;
 }
 
+/* 全局样式优化 - 确保所有平台正确显示 */
+html, body {
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden; /* 防止页面滚动 */
+  position: fixed; /* 防止移动端地址栏影响 */
+  width: 100%;
+}
+
+#root {
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+/* iOS Safari特殊处理 */
+@supports (-webkit-touch-callout: none) {
+  html, body, #root {
+    height: -webkit-fill-available !important;
+  }
+}
+
 .ant-layout-header {
-  height: 48px;
-  line-height: 48px;
+  height: 28px; /* PC端默认28px高度 */
   background: #f8fafc !important;
   border-bottom: 1px solid #e2e8f0;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  padding: 0 !important; /* 移除默认内边距，由内部容器处理 */
+  min-height: 28px;
+  display: flex !important;
+  align-items: stretch !important; /* 让内部容器拉伸填满 */
 }
 
 .ant-layout-sider {
@@ -122,10 +148,24 @@
 @media (min-width: 768px) and (max-width: 1024px) and (orientation: landscape) {
   /* iPad 横屏优化 */
   .ant-layout-header {
-    height: 48px !important;
-    line-height: 48px !important;
-    min-height: 48px !important;
-    padding-top: env(safe-area-inset-top, 0px) !important;
+    height: calc(52px + env(safe-area-inset-top, 0px)) !important;
+    min-height: calc(52px + env(safe-area-inset-top, 0px)) !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: stretch !important;
+  }
+  
+  /* 确保整个页面能正确显示 */
+  html, body, #root {
+    height: 100vh !important;
+    overflow: hidden !important;
+    position: fixed !important;
+    width: 100% !important;
+  }
+  
+  /* Layout高度适配 */
+  .ant-layout {
+    height: 100vh !important;
   }
   
   .main-layout-content {
@@ -144,10 +184,24 @@
 @media (min-width: 768px) and (max-width: 1024px) and (orientation: portrait) {
   /* iPad 竖屏优化 */
   .ant-layout-header {
-    height: 48px !important;
-    line-height: 48px !important;
-    min-height: 48px !important;
-    padding-top: env(safe-area-inset-top, 0px) !important;
+    height: calc(52px + env(safe-area-inset-top, 0px)) !important;
+    min-height: calc(52px + env(safe-area-inset-top, 0px)) !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: stretch !important;
+  }
+  
+  /* 确保整个页面能正确显示 */
+  html, body, #root {
+    height: 100vh !important;
+    overflow: hidden !important;
+    position: fixed !important;
+    width: 100% !important;
+  }
+  
+  /* Layout高度适配 */
+  .ant-layout {
+    height: 100vh !important;
   }
   
   .main-layout-content {
