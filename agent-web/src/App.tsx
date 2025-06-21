@@ -1,6 +1,6 @@
-import { useState, createContext, useContext, useCallback } from 'react'
+import { useState, createContext, useContext, useCallback, useEffect } from 'react'
 import { Layout, Button, Modal, Form, Input, ConfigProvider, theme, Select, Card, Divider, List, Popconfirm, message } from 'antd'
-import { SettingOutlined, PlusOutlined, DeleteOutlined, EditOutlined, SaveOutlined, FolderOpenOutlined, PrinterOutlined, UndoOutlined, RedoOutlined, BoldOutlined, ItalicOutlined, UnderlineOutlined } from '@ant-design/icons'
+import { SettingOutlined, PlusOutlined, DeleteOutlined, EditOutlined, SaveOutlined, FolderOpenOutlined, PrinterOutlined, UndoOutlined, RedoOutlined, BoldOutlined, ItalicOutlined, UnderlineOutlined, MenuUnfoldOutlined, MenuFoldOutlined } from '@ant-design/icons'
 import ResourcePanel from './components/ResourcePanel'
 import EditorPanel from './components/EditorPanel'
 import InteractionPanel from './components/InteractionPanel'
@@ -94,7 +94,7 @@ function App() {
     const allModels = {...DEFAULT_MODEL_PRESETS, ...loadCustomModels()}
     return allModels['deepseek-reasoner']
   })
-  const [rightSiderWidth, setRightSiderWidth] = useState<number>(700)
+  const [rightSiderWidth, setRightSiderWidth] = useState<number>(450) // 增加右侧栏默认宽度
   const [isResizing, setIsResizing] = useState(false)
   const [isAddModelModalOpen, setIsAddModelModalOpen] = useState(false)
   const [addModelForm] = Form.useForm()
@@ -103,6 +103,25 @@ function App() {
   // Agent相关状态
   const [agentId, setAgentId] = useState<string | null>(null)
   const [agentInitialized, setAgentInitialized] = useState(false)
+  
+  // 左侧栏折叠状态，默认为折叠
+  const [leftSiderCollapsed, setLeftSiderCollapsed] = useState(true)
+  
+  // 检测屏幕尺寸以自动调整布局
+  const [screenWidth, setScreenWidth] = useState(window.innerWidth)
+  
+  useEffect(() => {
+    const handleResize = () => {
+      setScreenWidth(window.innerWidth)
+      // 在小屏幕上自动折叠左侧栏
+      if (window.innerWidth < 768 && !leftSiderCollapsed) {
+        setLeftSiderCollapsed(true)
+      }
+    }
+    
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [leftSiderCollapsed])
 
   // 获取所有模型配置（默认+自定义）
   const getAllModels = (): Record<string, ModelConfig> => ({...DEFAULT_MODEL_PRESETS, ...customModels})
@@ -154,7 +173,7 @@ function App() {
     
     const handleMouseMove = (e: MouseEvent) => {
       const deltaX = startX - e.clientX
-      const newWidth = Math.max(300, Math.min(800, startWidth + deltaX))
+      const newWidth = Math.max(200, Math.min(800, startWidth + deltaX)) // 放宽拖拽范围：最小200px，最大800px
       setRightSiderWidth(newWidth)
     }
     
@@ -167,6 +186,37 @@ function App() {
     document.addEventListener('mousemove', handleMouseMove)
     document.addEventListener('mouseup', handleMouseUp)
   }, [rightSiderWidth])
+
+  // 处理触摸事件 - 为iPad等触摸设备提供支持
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    e.preventDefault()
+    setIsResizing(true)
+    
+    const startX = e.touches[0].clientX
+    const startWidth = rightSiderWidth
+    
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length > 0) {
+        const deltaX = startX - e.touches[0].clientX
+        const newWidth = Math.max(200, Math.min(800, startWidth + deltaX)) // 放宽拖拽范围
+        setRightSiderWidth(newWidth)
+      }
+    }
+    
+    const handleTouchEnd = () => {
+      setIsResizing(false)
+      document.removeEventListener('touchmove', handleTouchMove)
+      document.removeEventListener('touchend', handleTouchEnd)
+    }
+    
+    document.addEventListener('touchmove', handleTouchMove, { passive: false })
+    document.addEventListener('touchend', handleTouchEnd)
+  }, [rightSiderWidth])
+
+  // 切换左侧栏折叠状态
+  const toggleLeftSider = () => {
+    setLeftSiderCollapsed(!leftSiderCollapsed)
+  }
 
   // 添加自定义模型
   const handleAddModel = () => {
@@ -251,23 +301,36 @@ function App() {
           <Header style={{ 
             background: '#f8fafc', 
             padding: '0 8px', 
-            height: '24px',
-            lineHeight: '24px',
-            minHeight: '24px',
+            height: screenWidth <= 1024 ? '48px' : '24px', // iPad等触摸设备使用更高的Header
+            lineHeight: screenWidth <= 1024 ? '48px' : '24px',
+            minHeight: screenWidth <= 1024 ? '48px' : '24px',
             borderBottom: '1px solid #e2e8f0',
             position: 'relative',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+            // 为iPad等设备添加安全区域支持
+            paddingTop: screenWidth <= 1024 ? 'env(safe-area-inset-top, 0px)' : '0',
+            zIndex: 1000 // 确保Header在最上层
           }}>
-            {/* 左侧工具栏按钮 - 已隐藏 */}
-            <div style={{ display: 'none' }}>
-              <Button type="text" size="small" icon={<SaveOutlined />} title="保存" style={{ fontSize: '11px', height: '20px', padding: '0 4px' }} />
-              <Button type="text" size="small" icon={<FolderOpenOutlined />} title="打开" style={{ fontSize: '11px', height: '20px', padding: '0 4px' }} />
-              <Button type="text" size="small" icon={<PrinterOutlined />} title="打印" style={{ fontSize: '11px', height: '20px', padding: '0 4px' }} />
-              <Button type="text" size="small" icon={<UndoOutlined />} title="撤销" style={{ fontSize: '11px', height: '20px', padding: '0 4px' }} />
-              <Button type="text" size="small" icon={<RedoOutlined />} title="重做" style={{ fontSize: '11px', height: '20px', padding: '0 4px' }} />
-              <Button type="text" size="small" icon={<BoldOutlined />} title="粗体" style={{ fontSize: '11px', height: '20px', padding: '0 4px' }} />
-              <Button type="text" size="small" icon={<ItalicOutlined />} title="斜体" style={{ fontSize: '11px', height: '20px', padding: '0 4px' }} />
-              <Button type="text" size="small" icon={<UnderlineOutlined />} title="下划线" style={{ fontSize: '11px', height: '20px', padding: '0 4px' }} />
+            {/* 左侧折叠按钮 */}
+            <div style={{ 
+              position: 'absolute',
+              left: '8px',
+              top: '50%',
+              transform: 'translateY(-50%)'
+            }}>
+              <Button 
+                type="text" 
+                icon={leftSiderCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                onClick={toggleLeftSider}
+                style={{ 
+                  fontSize: screenWidth <= 1024 ? '16px' : '11px', 
+                  height: screenWidth <= 1024 ? '40px' : '20px', 
+                  padding: screenWidth <= 1024 ? '0 12px' : '0 6px',
+                  minWidth: screenWidth <= 1024 ? '40px' : 'auto' // 确保触摸区域足够大
+                }}
+                size={screenWidth <= 1024 ? 'middle' : 'small'}
+                title={leftSiderCollapsed ? '展开资源面板' : '收起资源面板'}
+              />
             </div>
             
             {/* 设置按钮 - 绝对定位在右边 */}
@@ -281,8 +344,13 @@ function App() {
                 type="text" 
                 icon={<SettingOutlined />} 
                 onClick={showSettingsModal}
-                style={{ fontSize: '11px', height: '20px', padding: '0 6px' }}
-                size="small"
+                style={{ 
+                  fontSize: screenWidth <= 1024 ? '16px' : '11px', 
+                  height: screenWidth <= 1024 ? '40px' : '20px', 
+                  padding: screenWidth <= 1024 ? '0 12px' : '0 6px',
+                  minWidth: screenWidth <= 1024 ? '60px' : 'auto' // 确保设置按钮触摸区域足够大
+                }}
+                size={screenWidth <= 1024 ? 'middle' : 'small'}
               >
                 设置
               </Button>
@@ -293,45 +361,81 @@ function App() {
           <Layout>
             {/* 左栏 - 资源区 */}
             <Sider 
-              width={280} 
+              width={200}
+              collapsedWidth={0}
+              collapsed={leftSiderCollapsed}
+              trigger={null}
+              className="left-sider-panel"
               style={{ 
                 background: '#f1f5f9',
-                borderRight: '1px solid #e2e8f0'
+                borderRight: leftSiderCollapsed ? 'none' : '1px solid #e2e8f0',
+                transition: 'all 0.2s'
               }}
             >
               <ResourcePanel />
             </Sider>
 
             {/* 中栏 - 编辑区 */}
-            <Content style={{ 
-              background: '#ffffff',
-              borderRight: '1px solid #e2e8f0'
-            }}>
+            <Content 
+              className="main-layout-content"
+              style={{ 
+                background: '#ffffff',
+                borderRight: '1px solid #e2e8f0',
+                minWidth: '600px',
+                flex: 1
+              }}
+            >
               <EditorPanel />
             </Content>
 
             {/* 右栏 - 交互区 */}
-            <div style={{ 
-              width: rightSiderWidth,
-              background: '#f1f5f9',
-              position: 'relative',
-              display: 'flex'
-            }}>
+            <div 
+              className="right-sider-panel"
+              style={{ 
+                width: rightSiderWidth,
+                background: '#f1f5f9',
+                position: 'relative',
+                display: 'flex',
+                minWidth: '200px',
+                maxWidth: '800px' // 放宽最大宽度限制，与拖拽范围一致
+              }}
+            >
               {/* 可拖拽的分割线 */}
               <div
                 style={{
-                  width: '4px',
-                  background: isResizing ? '#94a3b8' : 'transparent',
+                  width: screenWidth <= 1024 ? '12px' : '4px', // iPad等触摸设备使用更宽的触摸区域
+                  background: isResizing ? '#94a3b8' : (screenWidth <= 1024 ? 'rgba(203, 213, 225, 0.3)' : 'transparent'),
                   cursor: 'col-resize',
                   position: 'absolute',
                   left: 0,
                   top: 0,
                   bottom: 0,
                   zIndex: 10,
-                  borderLeft: '1px solid #e2e8f0'
+                  borderLeft: '1px solid #e2e8f0',
+                  // 增加触摸友好性
+                  touchAction: 'none', // 阻止所有默认触摸行为
+                  userSelect: 'none',
+                  WebkitUserSelect: 'none',
+                  // 添加视觉提示
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
                 }}
                 onMouseDown={handleMouseDown}
-              />
+                onTouchStart={handleTouchStart}
+                title="拖拽调整交互栏宽度"
+              >
+                {/* 在触摸设备上显示拖拽指示器 */}
+                {screenWidth <= 1024 && (
+                  <div style={{
+                    width: '2px',
+                    height: '30px',
+                    background: '#94a3b8',
+                    borderRadius: '1px',
+                    opacity: 0.6
+                  }} />
+                )}
+              </div>
               <div style={{ flex: 1, marginLeft: '4px' }}>
                 <InteractionPanel />
               </div>

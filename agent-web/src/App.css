@@ -22,6 +22,147 @@
   height: 100%;
 }
 
+/* 响应式布局样式 */
+/* 大屏幕 (PC) - >= 1440px */
+@media (min-width: 1440px) {
+  .main-layout-content {
+    min-width: 800px; /* 确保编辑区有足够宽度 */
+  }
+  
+  .right-sider-panel {
+    max-width: 800px; /* 放宽PC上的最大宽度 */
+  }
+}
+
+/* 中等屏幕 (小型PC、大平板横屏) - 1024px to 1439px */
+@media (min-width: 1024px) and (max-width: 1439px) {
+  .main-layout-content {
+    min-width: 600px; /* iPad Pro 横屏等 */
+  }
+  
+  .right-sider-panel {
+    max-width: 600px; /* 中等屏幕适当放宽 */
+  }
+  
+  .left-sider-panel {
+    width: 180px !important; /* 进一步缩小左侧栏 */
+  }
+}
+
+/* 平板横屏 - 768px to 1023px */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .main-layout-content {
+    min-width: 500px; /* 确保编辑区可用 */
+  }
+  
+  .right-sider-panel {
+    max-width: 320px;
+    min-width: 240px;
+  }
+  
+  .left-sider-panel {
+    width: 160px !important;
+  }
+}
+
+/* 平板竖屏和大手机 - 480px to 767px */
+@media (min-width: 480px) and (max-width: 767px) {
+  .ant-layout-header {
+    height: 44px !important;
+    line-height: 44px !important;
+    min-height: 44px !important;
+  }
+  
+  .main-layout-content {
+    min-width: 300px;
+  }
+  
+  .right-sider-panel {
+    max-width: 280px;
+    min-width: 200px;
+  }
+  
+  /* 小屏幕时默认隐藏左侧栏 */
+  .left-sider-collapsed-mobile {
+    display: none !important;
+  }
+}
+
+/* 小手机 - < 480px */
+@media (max-width: 479px) {
+  .ant-layout-header {
+    height: 36px;
+    line-height: 36px;
+    padding: 0 4px;
+  }
+  
+  .main-layout-content {
+    min-width: 250px;
+  }
+  
+  .right-sider-panel {
+    max-width: 240px;
+    min-width: 180px;
+  }
+  
+  /* 强制标题字体更小 */
+  .ant-typography h5 {
+    font-size: 12px !important;
+  }
+  
+  /* 按钮样式调整 */
+  .ant-btn-sm {
+    height: 28px;
+    padding: 0 4px;
+    font-size: 10px;
+  }
+}
+
+/* iPad 专门优化 */
+@media (min-width: 768px) and (max-width: 1024px) and (orientation: landscape) {
+  /* iPad 横屏优化 */
+  .ant-layout-header {
+    height: 48px !important;
+    line-height: 48px !important;
+    min-height: 48px !important;
+    padding-top: env(safe-area-inset-top, 0px) !important;
+  }
+  
+  .main-layout-content {
+    min-width: 600px; /* 确保文档编辑区足够宽 */
+  }
+  
+  .right-sider-panel {
+    max-width: 500px; /* iPad横屏适当放宽 */
+  }
+  
+  .left-sider-panel {
+    width: 180px !important;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1024px) and (orientation: portrait) {
+  /* iPad 竖屏优化 */
+  .ant-layout-header {
+    height: 48px !important;
+    line-height: 48px !important;
+    min-height: 48px !important;
+    padding-top: env(safe-area-inset-top, 0px) !important;
+  }
+  
+  .main-layout-content {
+    min-width: 400px;
+  }
+  
+  .right-sider-panel {
+    max-width: 300px;
+  }
+  
+  .left-sider-panel {
+    width: 160px !important;
+  }
+}
+
 /* Thinking框样式 */
 .thinking-collapse .ant-collapse-header {
   padding: 8px 12px !important;
@@ -50,6 +191,36 @@
   border-radius: 8px;
   margin-top: -4px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Agent流程详情框样式 */
+.agent-streams-collapse .ant-collapse-header {
+  padding: 8px 12px !important;
+  background: #f9f0ff !important;
+  border: 1px solid #d3adf7;
+  border-radius: 8px;
+  margin-bottom: 4px;
+  transition: all 0.2s ease;
+}
+
+.agent-streams-collapse .ant-collapse-header:hover {
+  background: #f0e6ff !important;
+  border-color: #b37feb;
+  box-shadow: 0 2px 4px rgba(114, 46, 209, 0.1);
+}
+
+.agent-streams-collapse .ant-collapse-content {
+  background: transparent !important;
+  border: none !important;
+}
+
+.agent-streams-collapse .ant-collapse-content-box {
+  padding: 8px 12px !important;
+  background: #fafafa;
+  border: 1px solid #d3adf7;
+  border-radius: 8px;
+  margin-top: -4px;
+  box-shadow: 0 1px 3px rgba(114, 46, 209, 0.05);
 }
 
 /* 自定义滚动条样式 */
@@ -101,4 +272,41 @@
 .ant-btn-text:hover {
   color: #475569;
   background: #f1f5f9;
+}
+
+/* 拖拽分割线在移动设备上的优化 */
+@media (max-width: 768px) {
+  .resize-handle {
+    width: 6px !important;
+  }
+}
+
+/* iPad触摸优化 */
+@media (min-width: 768px) and (max-width: 1024px) {
+  /* 增加拖拽区域的触摸友好性 */
+  .right-sider-panel > div:first-child {
+    width: 8px !important; /* 增加触摸区域宽度 */
+    touch-action: pan-x; /* 优化触摸拖拽 */
+  }
+  
+  /* 在触摸设备上显示拖拽提示 */
+  .right-sider-panel > div:first-child::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 2px;
+    height: 20px;
+    background: #cbd5e1;
+    border-radius: 1px;
+  }
+}
+
+/* 确保iframe在移动设备上的响应式 */
+@media (max-width: 768px) {
+  iframe {
+    width: 100% !important;
+    height: 100% !important;
+  }
 } 
