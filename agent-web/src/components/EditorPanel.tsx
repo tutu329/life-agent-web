@@ -380,8 +380,36 @@ const EditorPanel: React.FC = () => {
             sendHostReady()
           }, 1000)
         }
+        
+        // 专门处理Python脚本相关的消息
+        if (data.MessageId === 'CallPythonScript-Result') {
+          console.log('🐍 ------CallPythonScript响应:', data)
+          setReceivedMessages(prev => [...prev.slice(-9), `Python响应: ${JSON.stringify(data.Values)}`])
+        }
+        
+        if (data.MessageId === 'Send_UNO_Command_Resp') {
+          console.log('🔧 UNO Command响应:', data)
+          setReceivedMessages(prev => [...prev.slice(-9), `UNO响应: ${JSON.stringify(data.Values)}`])
+        }
+        
+        if (data.MessageId === 'Execute_Script_Resp') {
+          console.log('📜 Execute Script响应:', data)
+          setReceivedMessages(prev => [...prev.slice(-9), `Script响应: ${JSON.stringify(data.Values)}`])
+        }
+        
+        // 处理错误消息
+        if (data.MessageId && data.MessageId.includes('Error')) {
+          console.error('❌ Collabora错误消息:', data)
+          setReceivedMessages(prev => [...prev.slice(-9), `错误: ${data.MessageId}`])
+          messageApi.error(`Collabora错误: ${data.MessageId}`)
+        }
+        
       } catch (error) {
         console.log('📩 收到来自iframe的原始消息:', event.data)
+        // 如果是字符串消息，也记录下来
+        if (typeof event.data === 'string') {
+          setReceivedMessages(prev => [...prev.slice(-9), `原始消息: ${event.data.substring(0, 50)}...`])
+        }
       }
     }
     
@@ -572,7 +600,207 @@ const EditorPanel: React.FC = () => {
     console.log('🚀 跳转到书签:', command);
     iframeRef.current.contentWindow?.postMessage(command, collaboraUrl);
   };
-  
+
+  // 测试CallPythonScript调用office_api.py - 使用社区验证的成功格式
+  const testCallPythonScript = () => {
+    if (!iframeRef.current) {
+      console.log('❌ iframe未准备好')
+      messageApi.error('文档编辑器未准备好')
+      return
+    }
+
+    console.log('🐍 测试CallPythonScript - 使用社区验证的成功格式')
+    
+    // 🎯 方式1: 官方SDK文档的精确格式 (最重要的尝试)
+    // const officialFormat = {
+    //   MessageId: 'CallPythonScript',
+    //   SendTime: Date.now(),
+    //   Values: {
+    //     ScriptFile: 'office_api.py',
+    //     Function: 'hello',
+    //     Values: {}
+    //   }
+    // }
+    
+    const officialFormat = {
+      'MessageId': 'CallPythonScript',
+      'SendTime': Date.now(),
+      'ScriptFile': 'office_api.py',
+      'Function': 'hello',
+      'Values': {}
+    }
+    console.log('📤 方式1 - 官方SDK格式:', officialFormat)
+    setReceivedMessages(prev => [...prev.slice(-9), '🎯 测试官方SDK格式'])
+    
+    try {
+      iframeRef.current.contentWindow?.postMessage(JSON.stringify(officialFormat), collaboraUrl)
+      // iframeRef.current.contentWindow?.postMessage(officialFormat, collaboraUrl)
+      
+      // 延迟测试简化版本
+      setTimeout(() => {
+        const simplifiedFormat = {
+          MessageId: 'CallPythonScript',
+          Values: {
+            ScriptFile: 'office_api.py',
+            Function: 'hello',
+            Values: {}
+          }
+        }
+        console.log('📤 方式2 - 简化格式调用simple_test:', simplifiedFormat)
+        setReceivedMessages(prev => [...prev.slice(-9), '🧪 测试simple_test函数'])
+        iframeRef.current?.contentWindow?.postMessage(simplifiedFormat, collaboraUrl)
+      }, 2000)
+      
+      // 尝试不同的脚本名格式
+      setTimeout(() => {
+        const alternativeFormat = {
+          MessageId: 'CallPythonScript',
+          SendTime: Date.now(),
+          ScriptFile: 'office_api.py',  // 将ScriptFile放在顶层
+          Function: 'hello',
+          Values: {}
+        }
+        console.log('📤 方式3 - 替代格式:', alternativeFormat)
+        setReceivedMessages(prev => [...prev.slice(-9), '🔄 测试替代格式'])
+        iframeRef.current?.contentWindow?.postMessage(alternativeFormat, collaboraUrl)
+      }, 4000)
+      
+      messageApi.info('✅ 已发送CallPythonScript请求(3种格式)，重启容器后应该生效！')
+    } catch (error) {
+      console.error('❌ 发送CallPythonScript失败:', error)
+      messageApi.error('发送Python脚本调用失败')
+    }
+  }
+
+  // 测试UNO连接和替代调用方式
+  const testUnoConnection = () => {
+    if (!iframeRef.current) {
+      console.log('❌ iframe未准备好')
+      messageApi.error('文档编辑器未准备好')
+      return
+    }
+
+    console.log('🔧 测试多种Python脚本调用方式')
+    
+    // 方式A: callPythonScript（小写）
+    const callPythonMessage = {
+      MessageId: 'callPythonScript',
+      SendTime: Date.now(),
+      Values: {
+        ScriptName: 'office_api.py',
+        Function: 'test_uno_connection',
+        Args: []
+      }
+    }
+    
+    // 方式B: 使用UNO RunMacro命令
+    const unoMacroMessage = {
+      MessageId: 'Send_UNO_Command',
+      SendTime: Date.now(),
+      Values: {
+        Command: '.uno:RunMacro',
+        Args: {
+          Script: {
+            type: 'string',
+            value: 'vnd.sun.star.script:office_api.hello?language=Python&location=share'
+          }
+        }
+      }
+    }
+    
+    // 方式C: 直接执行脚本URL
+    const scriptUrlMessage = {
+      MessageId: 'Execute_Script',
+      SendTime: Date.now(),
+      Values: {
+        ScriptURL: 'vnd.sun.star.script:office_api.hello?language=Python&location=share'
+      }
+    }
+    
+    console.log('📤 方式A - CallPythonScript:', callPythonMessage)
+    setReceivedMessages(prev => [...prev.slice(-9), '测试A: CallPythonScript方式'])
+    
+    try {
+      iframeRef.current.contentWindow?.postMessage(callPythonMessage, collaboraUrl)
+      
+      setTimeout(() => {
+        console.log('📤 方式B - UNO RunMacro:', unoMacroMessage)
+        setReceivedMessages(prev => [...prev.slice(-9), '测试B: UNO RunMacro方式'])
+        iframeRef.current?.contentWindow?.postMessage(unoMacroMessage, collaboraUrl)
+      }, 1000)
+      
+      setTimeout(() => {
+        console.log('📤 方式C - Execute_Script:', scriptUrlMessage)
+        setReceivedMessages(prev => [...prev.slice(-9), '测试C: Execute_Script方式'])
+        iframeRef.current?.contentWindow?.postMessage(scriptUrlMessage, collaboraUrl)
+      }, 2000)
+      
+      messageApi.info('已发送多种Python脚本调用测试，请检查文档和日志')
+    } catch (error) {
+      console.error('❌ 发送测试失败:', error)
+            messageApi.error('发送测试失败')
+    }
+  }
+
+  // 直接宏调用测试 - 使用最简单的方式
+  const testDirectMacroCall = () => {
+    if (!iframeRef.current) {
+      console.log('❌ iframe未准备好')
+      messageApi.error('文档编辑器未准备好')
+      return
+    }
+
+    console.log('🎯 直接测试宏调用 - 尝试正确的Python脚本调用格式')
+    
+    // 方法1: 使用标准的UNO宏调用
+    const macroCallMessage1 = {
+      MessageId: 'Send_UNO_Command',
+      SendTime: Date.now(),
+      Values: {
+        Command: '.uno:RunMacro',
+        Args: {
+          MacroName: {
+            type: 'string',
+            value: 'office_api.hello'  // 直接使用模块名.函数名
+          }
+        }
+      }
+    }
+    
+    // 方法2: 尝试清除日志文件并重新创建模块加载
+    const clearLogMessage = {
+      MessageId: 'Send_UNO_Command',
+      SendTime: Date.now(),
+      Values: {
+        Command: '.uno:ExecuteMacro',  // 尝试不同的命令
+        Args: {
+          Script: {
+            type: 'string',
+            value: 'office_api.hello'
+          }
+        }
+      }
+    }
+    
+    console.log('📤 方法1 - RunMacro:', macroCallMessage1)
+    setReceivedMessages(prev => [...prev.slice(-9), '测试1: RunMacro直接调用'])
+    
+    try {
+      iframeRef.current.contentWindow?.postMessage(macroCallMessage1, collaboraUrl)
+      
+      setTimeout(() => {
+        console.log('📤 方法2 - ExecuteMacro:', clearLogMessage)
+        setReceivedMessages(prev => [...prev.slice(-9), '测试2: ExecuteMacro'])
+        iframeRef.current?.contentWindow?.postMessage(clearLogMessage, collaboraUrl)
+      }, 1000)
+      
+      messageApi.info('已发送宏调用测试，观察是否有响应')
+    } catch (error) {
+      console.error('❌ 发送宏调用测试失败:', error)
+      messageApi.error('发送宏调用测试失败')
+    }
+  }
+   
   const items = [
     {
       key: '1',
@@ -636,6 +864,47 @@ const EditorPanel: React.FC = () => {
                 最新: {receivedMessages[receivedMessages.length - 1]}
               </span>
             )}
+          </div>
+          
+          {/* 测试按钮区域 */}
+          <div style={{ 
+            padding: '8px 16px', 
+            background: '#f0f2f5',
+            border: '1px solid #d9d9d9',
+            borderRadius: '6px',
+            marginBottom: '8px',
+            display: 'flex',
+            gap: '8px',
+            alignItems: 'center'
+          }}>
+            <span style={{ fontSize: '12px', color: '#666', marginRight: '8px' }}>
+              CallPythonScript测试:
+            </span>
+            <Button 
+              size="small" 
+              type="primary" 
+              onClick={testCallPythonScript}
+              disabled={!documentReady}
+            >
+              测试hello()
+            </Button>
+                         <Button 
+               size="small" 
+               onClick={testUnoConnection}
+               disabled={!documentReady}
+             >
+               测试UNO连接  
+             </Button>
+             <Button 
+               size="small" 
+               onClick={testDirectMacroCall}
+               disabled={!documentReady}
+             >
+               直接宏调用
+             </Button>
+            <span style={{ fontSize: '11px', color: '#999' }}>
+              {documentReady ? '文档已就绪' : '等待文档加载...'}
+            </span>
           </div>
           
           {iframeError ? (
