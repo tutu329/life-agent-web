@@ -82,7 +82,7 @@ if sudo docker ps -a --format "table {{.Names}}" | grep -q "^collabora-code-5102
 else
   echo "🆕 未发现已存在容器，创建新的 collabora-code-5102 容器..."
   # 启动 Collabora CODE 容器，使用 SSL 证书和中文语言支持
-  sudo docker run -d \
+  sudo docker run --privileged -d \
     --name collabora-code-5102 \
     -p 5102:9980 \
     -e "domain=.*" \
