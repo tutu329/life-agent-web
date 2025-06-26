@@ -1,0 +1,46 @@
+一、修改collabora-code的docker容器
+1、进入容器：
+    sudo docker exec -it --user root collabora-code-5102 /bin/bash
+2、安装python等基础包和uno库
+    apt update
+    apt install python3 python3-pip python3-venv procps curl wget vim python3-requests python3-websocket python3-json5
+    apt install libreoffice-script-provider-python 
+        (注：1、之后python3中可以import uno；2、XSCRIPTCONTEXT变量为CODE控件自动注入的全局变量)
+3、放入测试py
+    cd /opt/collaboraoffice/share/Scripts/python
+    vi api_test.py:
+#------------------------------------------------------------------------------------------------------------
+# api_test.py
+import uno
+
+def say_hello():
+    """Writes 'Hello from Python!' into the current document."""
+    try:
+        # 获取文档上下文
+        desktop = XSCRIPTCONTEXT.getDesktop()
+        model = desktop.getCurrentComponent()
+
+        if not model:
+            return # 如果没有打开的文档，则不执行任何操作
+
+        # 获取文档的文本内容和光标
+        text = model.getText()
+        cursor = text.createTextCursor()
+        
+        # 在文档末尾插入文本
+        text.insertString(cursor, "Hello from Python! The script was executed successfully.", 0)
+    except Exception as e:
+        # 简单的错误处理，实际应用中可以更复杂
+        # 例如，可以在文档中插入错误信息
+        pass
+    return None
+#------------------------------------------------------------------------------------------------------------
+    chown cool:cool *.py
+    chmod 755 *.py
+4、修改coolwsd.xml配置(打开宏的执行、宏安全等级设置为0)
+sed -i 's/<enable_macros_execution[^>]*>false<\/enable_macros_execution>/<enable_macros_execution desc="Specifies whether the macro execution is enabled in general. This will enable Basic and Python scripts to execute both installed and from documents. If it is set to false, the macro_security_level is ignored. If it is set to true, the mentioned entry specified the level of macro security." type="bool" default="false">true<\/enable_macros_execution>/' /etc/coolwsd/coolwsd.xml
+
+sed -i 's/<macro_security_level[^>]*>1<\/macro_security_level>/<macro_security_level desc="Level of Macro security. 1 (Medium) Confirmation required before executing macros from untrusted sources. 0 (Low, not recommended) All macros will be executed without confirmation." type="int" default="1">0<\/macro_security_level>/' /etc/coolwsd/coolwsd.xml
+
+
+二、重启collabora-code的docker容器
