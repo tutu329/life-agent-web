@@ -1,4 +1,28 @@
 （仍然搞不定，可能考虑非docker方式部署）
+#---------------------也许这个方案可以（其实是官方方案，之前安装不行应该是gpg没有添加的问题）----------------------------
+# 1. 进入正在运行的 Collabora 容器
+sudo docker exec -it --user root collabora-code-5102 /bin/bash
+
+# 2. 添加 Collabora 仓库并更新
+mkdir -p /etc/apt/keyrings && cd /etc/apt/keyrings
+wget -O collaboraonline-release-keyring.gpg https://collaboraoffice.com/downloads/gpg/collaboraonline-release-keyring.gpg
+
+# 3. 创建源文件
+echo "Types: deb
+URIs: https://www.collaboraoffice.com/repos/CollaboraOnline/CODE-deb
+Suites: ./
+Signed-By: /etc/apt/keyrings/collaboraonline-release-keyring.gpg" > /etc/apt/sources.list.d/collaboraonline.sources
+
+# 4. 更新并安装所需包
+apt update
+apt install -y collaboraofficebasis-python-script-provider collaboraofficebasis-pyuno
+
+# 5. 重启 coolwsd 服务（这一步不一定这样）
+pkill coolwsd
+# 或者重启整个容器
+#---------------------也许这个方案可以----------------------------
+
+
 主要是关于collabora-CODE的docker容器和容器中coolwsd的设置，最终解决postMessage的CallPythonScript调用问题
 注：查看CODE容器情况的方式：sudo docker logs collabora-code-5102 2>&1 | grep Python
 
