@@ -694,27 +694,27 @@ const EditorPanel: React.FC = () => {
     }
     
     // 方式B: 使用UNO RunMacro命令
-    // const unoMacroMessage = {
-    //   MessageId: 'Send_UNO_Command',
-    //   SendTime: Date.now(),
-    //   Values: {
-    //     Command: '.uno:RunMacro',
-    //     Args: {
-    //       Script: {
-    //         type: 'string',
-    //         value: 'vnd.sun.star.script:office_api.hello?language=Python&location=share'
-    //       }
-    //     }
-    //   }
-    // }
     const unoMacroMessage = {
       MessageId: 'Send_UNO_Command',
       SendTime: Date.now(),
       Values: {
-        Command: 'vnd.sun.star.script:office_api.hello?language=Python&location=share',
-        Args: {}
+        Command: '.uno:RunMacro',
+        Args: {
+          Script: {
+            type: 'string',
+            value: 'vnd.sun.star.script:office_api.hello?language=Python&location=share'
+          }
+        }
       }
     }
+    // const unoMacroMessage = {
+    //   MessageId: 'Send_UNO_Command',
+    //   SendTime: Date.now(),
+    //   Values: {
+    //     Command: 'vnd.sun.star.script:office_api.hello?language=Python&location=share',
+    //     Args: {}
+    //   }
+    // }
     
     // 方式C: 直接执行脚本URL
     const scriptUrlMessage = {

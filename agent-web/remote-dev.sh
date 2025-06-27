@@ -60,9 +60,25 @@ sync_office_api() {
     sleep 3
     # 复制文件到容器
     sudo docker cp /tmp/office_api.py collabora-code-5102:/opt/collaboraoffice/share/Scripts/python/office_api.py
-    # 设置正确的权限和所有者
-    sudo docker exec collabora-code-5102 chown cool:cool /opt/collaboraoffice/share/Scripts/python/office_api.py
-    sudo docker exec collabora-code-5102 chmod 755 /opt/collaboraoffice/share/Scripts/python/office_api.py
+    # 设置正确的权限和所有者 - 确保立即执行
+    echo "🔧 设置office_api.py的权限为cool:cool..."
+    sudo docker exec -u root collabora-code-5102 chown cool:cool /opt/collaboraoffice/share/Scripts/python/office_api.py
+    sudo docker exec -u root collabora-code-5102 chmod 755 /opt/collaboraoffice/share/Scripts/python/office_api.py
+    
+    # 验证权限设置是否成功
+    echo "🔍 验证权限设置..."
+    ACTUAL_OWNER=$(sudo docker exec collabora-code-5102 stat -c "%U:%G" /opt/collaboraoffice/share/Scripts/python/office_api.py)
+    ACTUAL_PERMS=$(sudo docker exec collabora-code-5102 stat -c "%a" /opt/collaboraoffice/share/Scripts/python/office_api.py)
+    
+    if [ "$ACTUAL_OWNER" = "cool:cool" ] && [ "$ACTUAL_PERMS" = "755" ]; then
+      echo "✅ office_api.py权限设置成功: $ACTUAL_OWNER ($ACTUAL_PERMS)"
+    else
+      echo "⚠️ office_api.py权限设置可能有问题: $ACTUAL_OWNER ($ACTUAL_PERMS)"
+      echo "🔄 尝试重新设置权限..."
+      sudo docker exec -u root collabora-code-5102 chown cool:cool /opt/collaboraoffice/share/Scripts/python/office_api.py
+      sudo docker exec -u root collabora-code-5102 chmod 755 /opt/collaboraoffice/share/Scripts/python/office_api.py
+    fi
+    
     echo "✅ office_api.py已成功同步到Collabora CODE容器"
     # 显示容器中的Python脚本文件
     echo "📋 容器中的Python脚本文件列表:"

@@ -1,31 +1,47 @@
 （仍然搞不定，可能考虑非docker方式部署）
-#---------------------也许这个方案可以（其实是官方方案，之前安装不行应该是gpg没有添加的问题）----------------------------
-# 1. 进入正在运行的 Collabora 容器
+
+1、清理容器
+    服务器运行：sudo docker stop collabora-code-5102
+    服务器运行：sudo docker rm collabora-code-5102
+    cursor运行：remote-dev.sh
+
+2、先要确保前端CODE控件中‘宏选择器’能看到/opt/collaboraoffice/share/Scripts/python下的office_api.py，必须安装官方要求的collaboraofficebasis-python-script-provider和collaboraofficebasis-pyuno
+#---------------------（为官方方案，之前安装不行应该是gpg没有添加的问题）----------------------------
+# 1. root方式进入正在运行的 Collabora 容器
 sudo docker exec -it --user root collabora-code-5102 /bin/bash
 
-# 2. 添加 Collabora 仓库并更新
+# 2. 安装wget
+apt update
+apt install wget
+
+# 3. 添加 Collabora 仓库并更新
 mkdir -p /etc/apt/keyrings && cd /etc/apt/keyrings
 wget -O collaboraonline-release-keyring.gpg https://collaboraoffice.com/downloads/gpg/collaboraonline-release-keyring.gpg
 
-# 3. 创建源文件
+# 4. 创建源文件
 echo "Types: deb
 URIs: https://www.collaboraoffice.com/repos/CollaboraOnline/CODE-deb
 Suites: ./
 Signed-By: /etc/apt/keyrings/collaboraonline-release-keyring.gpg" > /etc/apt/sources.list.d/collaboraonline.sources
 
-# 4. 更新并安装所需包
+# 5. 更新并安装所需包
 apt update
 apt install -y collaboraofficebasis-python-script-provider collaboraofficebasis-pyuno
+#---------------------（为官方方案，之前安装不行应该是gpg没有添加的问题）----------------------------
 
-# 5. 重启 coolwsd 服务（这一步不一定这样）
-pkill coolwsd
-# 或者重启整个容器
-#---------------------也许这个方案可以----------------------------
+3、运行remote-dev.sh，确保容器中的office_api.py的权限没问题(cool:cool 755)，然后‘宏选择器’就能看到office_api.hello
+
+4、让‘宏选择器’能够执行office_api.hello（修改coolwsd.xml配置(打开宏的执行、宏安全等级设置为0)，要注意：执行一个sed后，可能自动退出容器，需要再登录从而执行第二个sed！！！）
+    sudo docker exec -it --user root collabora-code-5102 /bin/bash
+    sed -i 's/<enable_macros_execution[^>]*>false<\/enable_macros_execution>/<enable_macros_execution desc="Specifies whether the macro execution is enabled in general. This will enable Basic and Python scripts to execute both installed and from documents. If it is set to false, the macro_security_level is ignored. If it is set to true, the mentioned entry specified the level of macro security." type="bool" default="false">true<\/enable_macros_execution>/' /etc/coolwsd/coolwsd.xml
+    sed -i 's/<macro_security_level[^>]*>1<\/macro_security_level>/<macro_security_level desc="Level of Macro security. 1 (Medium) Confirmation required before executing macros from untrusted sources. 0 (Low, not recommended) All macros will be executed without confirmation." type="int" default="1">0<\/macro_security_level>/' /etc/coolwsd/coolwsd.xml
+
+5、重连后，然后‘宏选择器’就能够执行office_api.hello，并insertString "[2025-06-27 03:19:39] Hello from Python API! office_api.hello() 执行成功！" 到docx里了！
 
 
-主要是关于collabora-CODE的docker容器和容器中coolwsd的设置，最终解决postMessage的CallPythonScript调用问题
 
-【关键】查看CODE容器情况的方式：sudo docker logs collabora-code-5102 2>&1 | grep Python
+
+【关键】查看CODE容器实时情况的方式：sudo docker logs -f collabora-code-5102
 1）由于沙箱的缘故，office_api.log不会出现在/tmp下，而是在如/opt/cool/child-roots/1-e164ef2a/RW1gAvkifPtUCE34/tmp/下
 2）目前测试下来，调用CallPythonScript后台完全没有反应，而下述.uno:RunMacro有反应，页面会弹出“宏选择器”，只是不会自动执行（手动选择office_api的hello后能正确执行！因此后续尝试解决，从而不弹出‘宏选择器’而直接执行hello）
     // 方式B: 使用UNO RunMacro命令
@@ -42,6 +58,15 @@ pkill coolwsd
         }
       }
     }
+
+
+
+
+
+
+主要是关于collabora-CODE的docker容器和容器中coolwsd的设置，最终解决postMessage的CallPythonScript调用问题
+
+
 
 一、修改collabora-code的docker容器
 1、进入容器：
