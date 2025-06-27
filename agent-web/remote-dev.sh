@@ -29,6 +29,18 @@ else
   echo ""
 fi
 
+# 同步office_api.py到Collabora CODE容器
+echo "🐍 同步office_api.py到Collabora CODE容器..."
+if [ -f "./src/office_api/office_api.py" ]; then
+  # 先上传到服务器临时目录
+  scp -P $REMOTE_PORT ./src/office_api/office_api.py $REMOTE_USER@$REMOTE_HOST:/tmp/office_api.py
+  echo "✅ office_api.py已上传到远程服务器临时目录"
+  echo ""
+else
+  echo "⚠️ 警告: ./src/office_api/office_api.py 文件未找到，跳过Python脚本同步"
+  echo ""
+fi
+
 # 连接到远程服务器并启动开发环境
 ssh -p $REMOTE_PORT $REMOTE_USER@$REMOTE_HOST << 'EOF'
 # 加载nvm并使用Node.js 18
@@ -39,6 +51,28 @@ cd /home/tutu/server/life-agent-web
 
 echo "📌 使用Node.js版本: $(node --version)"
 echo "📌 使用npm版本: $(npm --version)"
+
+# 定义office_api.py同步函数
+sync_office_api() {
+  echo "🐍 同步office_api.py到Collabora CODE容器..."
+  if [ -f "/tmp/office_api.py" ]; then
+    # 等待容器完全启动
+    sleep 3
+    # 复制文件到容器
+    sudo docker cp /tmp/office_api.py collabora-code-5102:/opt/collaboraoffice/share/Scripts/python/office_api.py
+    # 设置正确的权限和所有者
+    sudo docker exec collabora-code-5102 chown cool:cool /opt/collaboraoffice/share/Scripts/python/office_api.py
+    sudo docker exec collabora-code-5102 chmod 755 /opt/collaboraoffice/share/Scripts/python/office_api.py
+    echo "✅ office_api.py已成功同步到Collabora CODE容器"
+    # 显示容器中的Python脚本文件
+    echo "📋 容器中的Python脚本文件列表:"
+    sudo docker exec collabora-code-5102 ls -la /opt/collaboraoffice/share/Scripts/python/
+    # 清理临时文件
+    rm -f /tmp/office_api.py
+  else
+    echo "⚠️ /tmp/office_api.py文件不存在，跳过同步"
+  fi
+}
 
 # 1. 检查5112端口状态 (Office WebSocket服务器)
 echo "🔍 检查5112端口状态..."
@@ -79,12 +113,17 @@ if sudo docker ps -a --format "table {{.Names}}" | grep -q "^collabora-code-5102
   echo "🚀 启动已存在的 collabora-code-5102 容器..."
   sudo docker start collabora-code-5102
   echo "✅ Collabora CODE 服务器已启动 (复用已存在容器，保留自定义配置)"
+  
+  # 确保office_api.py文件存在于容器中
+  echo "🐍 检查并同步office_api.py到容器..."
+  sync_office_api
 else
   echo "🆕 未发现已存在容器，创建新的 collabora-code-5102 容器..."
   # 启动 Collabora CODE 容器，使用 SSL 证书和中文语言支持
   sudo docker run --privileged -d \
     --name collabora-code-5102 \
     -p 5102:9980 \
+    -e "PATH=/opt/collaboraoffice/program:$PATH" \
     -e "domain=.*" \
     -e "DONT_GEN_SSL_CERT=1" \
     -e "dictionaries=en_US zh_CN" \
@@ -94,6 +133,17 @@ else
     --restart unless-stopped \
     collabora/code:latest
   echo "✅ Collabora CODE 服务器已创建并启动 (使用 powerai.cc SSL 证书和中文语言支持)"
+
+    # -e "PYTHONHOME=/opt/collaboraoffice" \
+    # -e "PYTHONPATH=/opt/collaboraoffice/program:/opt/collaboraoffice/share/Scripts/python" \
+    
+  # 等待容器完全启动
+  echo "⏳ 等待容器完全启动..."
+  sleep 5
+  
+  # 同步office_api.py到新容器
+  echo "🐍 同步office_api.py到新容器..."
+  sync_office_api
 fi
 
 # 3. 启动 WOPI 服务器 (5103端口)

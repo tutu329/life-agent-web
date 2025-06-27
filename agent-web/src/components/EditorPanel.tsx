@@ -612,23 +612,23 @@ const EditorPanel: React.FC = () => {
     console.log('🐍 测试CallPythonScript - 使用社区验证的成功格式')
     
     // 🎯 方式1: 官方SDK文档的精确格式 (最重要的尝试)
-    // const officialFormat = {
-    //   MessageId: 'CallPythonScript',
-    //   SendTime: Date.now(),
-    //   Values: {
-    //     ScriptFile: 'office_api.py',
-    //     Function: 'hello',
-    //     Values: {}
-    //   }
-    // }
-    
     const officialFormat = {
-      'MessageId': 'CallPythonScript',
-      'SendTime': Date.now(),
-      'ScriptFile': 'office_api.py',
-      'Function': 'hello',
-      'Values': {}
+      MessageId: 'CallPythonScript',
+      SendTime: Date.now(),
+      Values: {
+        ScriptFile: 'office_api.py',
+        Function: 'hello',
+        Values: {}
+      }
     }
+    
+    // const officialFormat = {
+    //   'MessageId': 'CallPythonScript',
+    //   'SendTime': Date.now(),
+    //   'ScriptFile': 'office_api.py',
+    //   'Function': 'hello',
+    //   'Values': {}
+    // }
     console.log('📤 方式1 - 官方SDK格式:', officialFormat)
     setReceivedMessages(prev => [...prev.slice(-9), '🎯 测试官方SDK格式'])
     
@@ -648,7 +648,7 @@ const EditorPanel: React.FC = () => {
         }
         console.log('📤 方式2 - 简化格式调用simple_test:', simplifiedFormat)
         setReceivedMessages(prev => [...prev.slice(-9), '🧪 测试simple_test函数'])
-        iframeRef.current?.contentWindow?.postMessage(simplifiedFormat, collaboraUrl)
+        iframeRef.current?.contentWindow?.postMessage(JSON.stringify(simplifiedFormat), collaboraUrl)
       }, 2000)
       
       // 尝试不同的脚本名格式
@@ -662,7 +662,7 @@ const EditorPanel: React.FC = () => {
         }
         console.log('📤 方式3 - 替代格式:', alternativeFormat)
         setReceivedMessages(prev => [...prev.slice(-9), '🔄 测试替代格式'])
-        iframeRef.current?.contentWindow?.postMessage(alternativeFormat, collaboraUrl)
+        iframeRef.current?.contentWindow?.postMessage(JSON.stringify(alternativeFormat), collaboraUrl)
       }, 4000)
       
       messageApi.info('✅ 已发送CallPythonScript请求(3种格式)，重启容器后应该生效！')
@@ -684,7 +684,7 @@ const EditorPanel: React.FC = () => {
     
     // 方式A: callPythonScript（小写）
     const callPythonMessage = {
-      MessageId: 'callPythonScript',
+      MessageId: 'CallPythonScript',
       SendTime: Date.now(),
       Values: {
         ScriptName: 'office_api.py',
@@ -694,17 +694,25 @@ const EditorPanel: React.FC = () => {
     }
     
     // 方式B: 使用UNO RunMacro命令
+    // const unoMacroMessage = {
+    //   MessageId: 'Send_UNO_Command',
+    //   SendTime: Date.now(),
+    //   Values: {
+    //     Command: '.uno:RunMacro',
+    //     Args: {
+    //       Script: {
+    //         type: 'string',
+    //         value: 'vnd.sun.star.script:office_api.hello?language=Python&location=share'
+    //       }
+    //     }
+    //   }
+    // }
     const unoMacroMessage = {
       MessageId: 'Send_UNO_Command',
       SendTime: Date.now(),
       Values: {
-        Command: '.uno:RunMacro',
-        Args: {
-          Script: {
-            type: 'string',
-            value: 'vnd.sun.star.script:office_api.hello?language=Python&location=share'
-          }
-        }
+        Command: 'vnd.sun.star.script:office_api.hello?language=Python&location=share',
+        Args: {}
       }
     }
     
@@ -721,19 +729,20 @@ const EditorPanel: React.FC = () => {
     setReceivedMessages(prev => [...prev.slice(-9), '测试A: CallPythonScript方式'])
     
     try {
-      iframeRef.current.contentWindow?.postMessage(callPythonMessage, collaboraUrl)
+      iframeRef.current?.contentWindow?.postMessage(unoMacroMessage, collaboraUrl)
+      // iframeRef.current.contentWindow?.postMessage(callPythonMessage, collaboraUrl)
       
-      setTimeout(() => {
-        console.log('📤 方式B - UNO RunMacro:', unoMacroMessage)
-        setReceivedMessages(prev => [...prev.slice(-9), '测试B: UNO RunMacro方式'])
-        iframeRef.current?.contentWindow?.postMessage(unoMacroMessage, collaboraUrl)
-      }, 1000)
+      // setTimeout(() => {
+      //   console.log('📤 方式B - UNO RunMacro:', unoMacroMessage)
+      //   setReceivedMessages(prev => [...prev.slice(-9), '测试B: UNO RunMacro方式'])
+      //   iframeRef.current?.contentWindow?.postMessage(unoMacroMessage, collaboraUrl)
+      // }, 1000)
       
-      setTimeout(() => {
-        console.log('📤 方式C - Execute_Script:', scriptUrlMessage)
-        setReceivedMessages(prev => [...prev.slice(-9), '测试C: Execute_Script方式'])
-        iframeRef.current?.contentWindow?.postMessage(scriptUrlMessage, collaboraUrl)
-      }, 2000)
+      // setTimeout(() => {
+      //   console.log('📤 方式C - Execute_Script:', scriptUrlMessage)
+      //   setReceivedMessages(prev => [...prev.slice(-9), '测试C: Execute_Script方式'])
+      //   iframeRef.current?.contentWindow?.postMessage(scriptUrlMessage, collaboraUrl)
+      // }, 2000)
       
       messageApi.info('已发送多种Python脚本调用测试，请检查文档和日志')
     } catch (error) {

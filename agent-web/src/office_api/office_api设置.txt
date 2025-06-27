@@ -24,7 +24,24 @@ pkill coolwsd
 
 
 主要是关于collabora-CODE的docker容器和容器中coolwsd的设置，最终解决postMessage的CallPythonScript调用问题
-注：查看CODE容器情况的方式：sudo docker logs collabora-code-5102 2>&1 | grep Python
+
+【关键】查看CODE容器情况的方式：sudo docker logs collabora-code-5102 2>&1 | grep Python
+1）由于沙箱的缘故，office_api.log不会出现在/tmp下，而是在如/opt/cool/child-roots/1-e164ef2a/RW1gAvkifPtUCE34/tmp/下
+2）目前测试下来，调用CallPythonScript后台完全没有反应，而下述.uno:RunMacro有反应，页面会弹出“宏选择器”，只是不会自动执行（手动选择office_api的hello后能正确执行！因此后续尝试解决，从而不弹出‘宏选择器’而直接执行hello）
+    // 方式B: 使用UNO RunMacro命令
+    const unoMacroMessage = {
+      MessageId: 'Send_UNO_Command',
+      SendTime: Date.now(),
+      Values: {
+        Command: '.uno:RunMacro',
+        Args: {
+          Script: {
+            type: 'string',
+            value: 'vnd.sun.star.script:office_api.hello?language=Python&location=share'
+          }
+        }
+      }
+    }
 
 一、修改collabora-code的docker容器
 1、进入容器：
@@ -32,7 +49,7 @@ pkill coolwsd
 2、安装python等基础包和uno库
     apt update
     apt install python3 python3-pip python3-venv procps curl wget vim python3-requests python3-websocket python3-json5
-    apt install libreoffice-script-provider-python 
+    apt install libreoffice-script-provider-python (这个测试过，有问题的！！！不要安装)
         (注：1、之后python3中可以import uno；2、XSCRIPTCONTEXT变量为CODE控件自动注入的全局变量)
 3、放入测试py
     cd /opt/collaboraoffice/share/Scripts/python
