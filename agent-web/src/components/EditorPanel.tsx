@@ -612,60 +612,194 @@ const EditorPanel: React.FC = () => {
     console.log('🐍 测试CallPythonScript - 使用社区验证的成功格式')
     
     // 🎯 方式1: 官方SDK文档的精确格式 (最重要的尝试)
-    const officialFormat = {
-      MessageId: 'CallPythonScript',
-      SendTime: Date.now(),
-      Values: {
-        ScriptFile: 'office_api.py',
-        Function: 'hello',
-        Values: {}
-      }
-    }
+    // const officialFormat = {
+    //   MessageId: 'CallPythonScript',
+    //   SendTime: Date.now(),
+    //   Values: {
+    //     ScriptFile: 'office_api.py',
+    //     Function: 'hello',
+    //     Values: {}
+    //   }
+    // }
     
+    const officialFormat = {
+      'MessageId': 'CallPythonScript',
+      'SendTime': Date.now(),
+      'ScriptFile': 'office_api.py',
+      'Function': 'hello',
+      'Values': null
+    }
     // const officialFormat = {
     //   'MessageId': 'CallPythonScript',
     //   'SendTime': Date.now(),
     //   'ScriptFile': 'office_api.py',
     //   'Function': 'hello',
-    //   'Values': {}
+    //   'Values': JSON.stringify({'a': 'b'})
     // }
     console.log('📤 方式1 - 官方SDK格式:', officialFormat)
     setReceivedMessages(prev => [...prev.slice(-9), '🎯 测试官方SDK格式'])
     
     try {
+      iframeRef.current.contentWindow?.postMessage(JSON.stringify({'MessageId': 'Host_PostmessageReady'}), '*')
       iframeRef.current.contentWindow?.postMessage(JSON.stringify(officialFormat), collaboraUrl)
+      
       // iframeRef.current.contentWindow?.postMessage(officialFormat, collaboraUrl)
       
       // 延迟测试简化版本
-      setTimeout(() => {
-        const simplifiedFormat = {
-          MessageId: 'CallPythonScript',
-          Values: {
-            ScriptFile: 'office_api.py',
-            Function: 'hello',
-            Values: {}
-          }
-        }
-        console.log('📤 方式2 - 简化格式调用simple_test:', simplifiedFormat)
-        setReceivedMessages(prev => [...prev.slice(-9), '🧪 测试simple_test函数'])
-        iframeRef.current?.contentWindow?.postMessage(JSON.stringify(simplifiedFormat), collaboraUrl)
-      }, 2000)
+      // setTimeout(() => {
+      //   const simplifiedFormat = {
+      //     MessageId: 'CallPythonScript',
+      //     Values: {
+      //       ScriptFile: 'office_api.py',
+      //       Function: 'hello',
+      //       Values: {}
+      //     }
+      //   }
+      //   console.log('📤 方式2 - 简化格式调用simple_test:', simplifiedFormat)
+      //   setReceivedMessages(prev => [...prev.slice(-9), '🧪 测试simple_test函数'])
+      //   iframeRef.current?.contentWindow?.postMessage(JSON.stringify(simplifiedFormat), collaboraUrl)
+      // }, 2000)
       
       // 尝试不同的脚本名格式
-      setTimeout(() => {
-        const alternativeFormat = {
-          MessageId: 'CallPythonScript',
-          SendTime: Date.now(),
-          ScriptFile: 'office_api.py',  // 将ScriptFile放在顶层
-          Function: 'hello',
-          Values: {}
-        }
-        console.log('📤 方式3 - 替代格式:', alternativeFormat)
-        setReceivedMessages(prev => [...prev.slice(-9), '🔄 测试替代格式'])
-        iframeRef.current?.contentWindow?.postMessage(JSON.stringify(alternativeFormat), collaboraUrl)
-      }, 4000)
+      // setTimeout(() => {
+      //   const alternativeFormat = {
+      //     MessageId: 'CallPythonScript',
+      //     SendTime: Date.now(),
+      //     ScriptFile: 'office_api.py',  // 将ScriptFile放在顶层
+      //     Function: 'hello',
+      //     Values: {}
+      //   }
+      //   console.log('📤 方式3 - 替代格式:', alternativeFormat)
+      //   setReceivedMessages(prev => [...prev.slice(-9), '🔄 测试替代格式'])
+      //   iframeRef.current?.contentWindow?.postMessage(JSON.stringify(alternativeFormat), collaboraUrl)
+      // }, 4000)
       
-      messageApi.info('✅ 已发送CallPythonScript请求(3种格式)，重启容器后应该生效！')
+      // 🚀 新增：方式4 - 使用ExecuteMacro命令 (可能绕过对话框)
+      // setTimeout(() => {
+      //   const executeMacroMessage = {
+      //     MessageId: 'Send_UNO_Command',
+      //     SendTime: Date.now(),
+      //     Values: {
+      //       Command: '.uno:ExecuteMacro',
+      //       Args: {
+      //         Script: {
+      //           type: 'string',
+      //           value: 'office_api.hello'  // 直接使用模块名.函数名
+      //         }
+      //       }
+      //     }
+      //   }
+      //   console.log('📤 方式4 - ExecuteMacro直接调用:', executeMacroMessage)
+      //   setReceivedMessages(prev => [...prev.slice(-9), '🚀 测试ExecuteMacro'])
+      //   iframeRef.current?.contentWindow?.postMessage(executeMacroMessage, collaboraUrl)
+      // }, 6000)
+      
+      // 🎯 新增：方式5 - 使用正确的Python脚本URI格式
+      // setTimeout(() => {
+      //   const scriptUriMessage = {
+      //     MessageId: 'Send_UNO_Command',
+      //     SendTime: Date.now(),
+      //     Values: {
+      //       Command: '.uno:RunMacro',
+      //       Args: {
+      //         Script: {
+      //           type: 'string',
+      //           value: 'vnd.sun.star.script:office_api.hello?language=Python&location=share'
+      //         }
+      //       }
+      //     }
+      //   }
+      //   console.log('📤 方式5 - Python脚本URI格式:', scriptUriMessage)
+      //   setReceivedMessages(prev => [...prev.slice(-9), '🔗 测试脚本URI格式'])
+      //   iframeRef.current?.contentWindow?.postMessage(scriptUriMessage, collaboraUrl)
+      // }, 8000)
+      
+      // 🔧 新增：方式6 - 使用MacroName参数
+      // setTimeout(() => {
+      //   const macroNameMessage = {
+      //     MessageId: 'Send_UNO_Command',
+      //     SendTime: Date.now(),
+      //     Values: {
+      //       Command: '.uno:RunMacro',
+      //       Args: {
+      //         MacroName: {
+      //           type: 'string',
+      //           value: 'office_api.hello'
+      //         }
+      //       }
+      //     }
+      //   }
+      //   console.log('📤 方式6 - MacroName参数:', macroNameMessage)
+      //   setReceivedMessages(prev => [...prev.slice(-9), '🔧 测试MacroName'])
+      //   iframeRef.current?.contentWindow?.postMessage(macroNameMessage, collaboraUrl)
+      // }, 10000)
+      
+      // 📜 新增：方式7 - 使用Execute_Script消息类型
+      // setTimeout(() => {
+      //   const executeScriptMessage = {
+      //     MessageId: 'Execute_Script',
+      //     SendTime: Date.now(),
+      //     Values: {
+      //       ScriptURL: 'vnd.sun.star.script:office_api.hello?language=Python&location=share'
+      //     }
+      //   }
+      //   console.log('📤 方式7 - Execute_Script:', executeScriptMessage)
+      //   setReceivedMessages(prev => [...prev.slice(-9), '📜 测试Execute_Script'])
+      //   iframeRef.current?.contentWindow?.postMessage(executeScriptMessage, collaboraUrl)
+      // }, 12000)
+      
+      // 🎪 新增：方式8 - 简化的ExecuteMacro (无Args)
+      // setTimeout(() => {
+      //   const simpleExecuteMessage = {
+      //     MessageId: 'Send_UNO_Command',
+      //     SendTime: Date.now(),
+      //     Values: {
+      //       Command: '.uno:ExecuteMacro',
+      //       Script: 'office_api.hello'  // 直接放在Values下
+      //     }
+      //   }
+      //   console.log('📤 方式8 - 简化ExecuteMacro:', simpleExecuteMessage)
+      //   setReceivedMessages(prev => [...prev.slice(-9), '🎪 测试简化ExecuteMacro'])
+      //   iframeRef.current?.contentWindow?.postMessage(simpleExecuteMessage, collaboraUrl)
+      // }, 1000)
+      
+      // 🌟 新增：方式9 - 使用CallFunction消息类型 (LibreOffice特有)
+      // setTimeout(() => {
+      //   const callFunctionMessage = {
+      //     MessageId: 'CallFunction',
+      //     SendTime: Date.now(),
+      //     Values: {
+      //       Library: 'office_api',
+      //       Function: 'hello',
+      //       Args: []
+      //     }
+      //   }
+      //   console.log('📤 方式9 - CallFunction:', callFunctionMessage)
+      //   setReceivedMessages(prev => [...prev.slice(-9), '🌟 测试CallFunction'])
+      //   iframeRef.current?.contentWindow?.postMessage(callFunctionMessage, collaboraUrl)
+      // }, 16000)
+      
+      // 🔥 新增：方式10 - 使用完整的Python脚本路径
+      // setTimeout(() => {
+      //   const fullPathMessage = {
+      //     MessageId: 'Send_UNO_Command',
+      //     SendTime: Date.now(),
+      //     Values: {
+      //       Command: '.uno:RunMacro',
+      //       Args: {
+      //         Script: {
+      //           type: 'string',
+      //           value: 'vnd.sun.star.script:/opt/collaboraoffice/share/Scripts/python/office_api.py$hello?language=Python&location=filesystem'
+      //         }
+      //       }
+      //     }
+      //   }
+      //   console.log('📤 方式10 - 完整Python路径:', fullPathMessage)
+      //   setReceivedMessages(prev => [...prev.slice(-9), '🔥 测试完整路径'])
+      //   iframeRef.current?.contentWindow?.postMessage(fullPathMessage, collaboraUrl)
+      // }, 1000)
+      
+      messageApi.info('✅ 已发送10种不同的调用方式，请观察控制台和文档响应！')
     } catch (error) {
       console.error('❌ 发送CallPythonScript失败:', error)
       messageApi.error('发送Python脚本调用失败')

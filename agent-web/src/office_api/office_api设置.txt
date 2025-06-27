@@ -38,6 +38,21 @@ apt install -y collaboraofficebasis-python-script-provider collaboraofficebasis-
 
 5、重连后，然后‘宏选择器’就能够执行office_api.hello，并insertString "[2025-06-27 03:19:39] Hello from Python API! office_api.hello() 执行成功！" 到docx里了！
 
+6、关于CallPythonScript没反应的问题：
+    iframeRef.current.contentWindow?.postMessage(JSON.stringify({'MessageId': 'Host_PostmessageReady'}), '*')
+    增加上述代码，就能正确执行下述代码！！！:
+        const officialFormat = {
+        'MessageId': 'CallPythonScript',
+        'SendTime': Date.now(),
+        'ScriptFile': 'office_api.py',
+        'Function': 'hello',
+        'Values': null
+        }
+        try {
+        iframeRef.current.contentWindow?.postMessage(JSON.stringify({'MessageId': 'Host_PostmessageReady'}), '*')
+        iframeRef.current.contentWindow?.postMessage(JSON.stringify(officialFormat), collaboraUrl)
+        }
+
 
 
 
