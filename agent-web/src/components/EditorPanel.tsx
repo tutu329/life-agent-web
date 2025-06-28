@@ -822,7 +822,47 @@ const EditorPanel: React.FC = () => {
       messageApi.error('发送宏调用测试失败')
     }
   }
-   
+
+  // 测试搜索hello字符串并设置格式 - 使用官方正确格式
+  const testSearchHello = () => {
+    if (!iframeRef.current) {
+      console.log('❌ iframe未准备好')
+      messageApi.error('文档编辑器未准备好')
+      return
+    }
+
+    console.log('🔍 测试搜索hello字符串并设置格式 - 使用官方正确格式')
+    
+    // 🎯 根据官方示例，使用正确的参数格式：每个参数都有type和value
+    const searchHelloFormat = {
+      'MessageId': 'CallPythonScript',
+      'SendTime': Date.now(),
+      'ScriptFile': 'office_api.py',
+      'Function': 'search_and_format_text',
+      'Values': {
+        'search_text': {'type': 'string', 'value': 'hello'},
+        'highlight_color': {'type': 'string', 'value': 'red'},
+        'font_name': {'type': 'string', 'value': '宋体'},
+        'font_size': {'type': 'long', 'value': 18}
+      }
+    }
+    
+    console.log('📤 搜索hello格式（官方正确格式）:', searchHelloFormat)
+    setReceivedMessages(prev => [...prev.slice(-9), '🔍 官方正确格式-搜索hello'])
+    
+    try {
+      iframeRef.current.contentWindow?.postMessage(JSON.stringify({'MessageId': 'Host_PostmessageReady'}), '*')
+      iframeRef.current.contentWindow?.postMessage(JSON.stringify(searchHelloFormat), collaboraUrl)
+      
+      messageApi.info('✅ 已发送官方正确格式的搜索hello请求！')
+    } catch (error) {
+      console.error('❌ 发送搜索hello请求失败:', error)
+      messageApi.error('发送搜索hello请求失败')
+    }
+  }
+
+
+
   const items = [
     {
       key: '1',
@@ -932,6 +972,15 @@ const EditorPanel: React.FC = () => {
             >
               直接宏调用
             </Button>
+            <Button 
+              size="small" 
+              onClick={testSearchHello}
+              disabled={!documentReady}
+              type="primary"
+            >
+              官方格式-搜索hello
+            </Button>
+
             <span style={{ fontSize: '11px', color: '#999' }}>
               {documentReady ? '文档已就绪' : '等待文档加载...'}
             </span>

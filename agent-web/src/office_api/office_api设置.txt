@@ -53,6 +53,28 @@ apt install -y collaboraofficebasis-python-script-provider collaboraofficebasis-
         iframeRef.current.contentWindow?.postMessage(JSON.stringify(officialFormat), collaboraUrl)
         }
 
+7、关于CallPythonScript调用时的输入参数，按照官方要求，要这样填写（目前测试结果，只能args方式接收）：
+    1）调用方：
+        const searchHelloFormat = {
+            'MessageId': 'CallPythonScript',
+            'SendTime': Date.now(),
+            'ScriptFile': 'office_api.py',
+            'Function': 'search_and_format_text',
+            'Values': {
+                'search_text': {'type': 'string', 'value': 'hello'},
+                'highlight_color': {'type': 'string', 'value': 'red'},
+                'font_name': {'type': 'string', 'value': '宋体'},
+                'font_size': {'type': 'long', 'value': 18}
+            }
+        }
+    2）python实现：
+    def search_and_format_text(*args, **kwargs):
+        search_text, highlight_color, font_name, font_size = args
+
+
+# -----------------------------------后面可能都没用-------------------------------------------
+
+
 
 
 
