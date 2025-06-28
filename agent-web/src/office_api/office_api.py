@@ -84,7 +84,7 @@ def hello():
         return error_msg
 
 def get_document_content():
-    """获取文档的所有内容"""
+    """获取文档的所有内容，包括表格结构化数据"""
     write_log("📄📄📄 get_document_content() 函数被调用！📄📄📄")
     write_log("=== get_document_content() 函数开始执行 ===")
     
@@ -106,47 +106,366 @@ def get_document_content():
         text = model.getText()
         write_log("成功获取文档文本对象")
         
-        # 获取所有文本内容
+        # 获取基础文本内容
         document_content = text.getString()
         content_length = len(document_content)
         
         write_log(f"成功获取文档内容，总长度: {content_length} 字符")
         write_log(f"文档内容预览(前200字符): {document_content[:200]}")
         
-        # 获取更多文档信息
-        document_info = {
+        # 准备结果数据结构
+        result_data = {
+            'basic_text': document_content,
             'content_length': content_length,
-            'has_content': content_length > 0,
+            'tables': [],
             'document_type': model.getImplementationName() if hasattr(model, 'getImplementationName') else 'Unknown'
         }
         
-        write_log(f"文档信息: {document_info}")
+        # === 开始处理表格内容 ===
+        write_log("🔍 开始搜索和解析表格...")
+        
+        try:
+            # 获取文档中的所有表格
+            text_tables = model.getTextTables()
+            table_count = text_tables.getCount()
+            write_log(f"📊 文档中共发现 {table_count} 个表格")
+            
+            for table_idx in range(table_count):
+                table = text_tables.getByIndex(table_idx)
+                table_name = table.getName()
+                write_log(f"📊 处理表格 {table_idx + 1}: {table_name}")
+                
+                # 获取表格的行和列信息
+                rows = table.getRows()
+                columns = table.getColumns()
+                row_count = rows.getCount()
+                col_count = columns.getCount()
+                
+                write_log(f"   表格尺寸: {row_count} 行 x {col_count} 列")
+                
+                # === 使用getCellNames()获取所有实际存在的单元格（正确处理合并单元格）===
+                try:
+                    all_cell_names = table.getCellNames()
+                    write_log(f"   实际单元格数量: {len(all_cell_names)} 个")
+                    write_log(f"   单元格名称列表: {list(all_cell_names)[:10]}{'...' if len(all_cell_names) > 10 else ''}")
+                except Exception as cell_names_error:
+                    write_log(f"⚠️ 获取单元格名称失败: {str(cell_names_error)}")
+                    all_cell_names = []
+                
+                # 创建表格数据结构
+                table_data = {
+                    'name': table_name,
+                    'rows': row_count,
+                    'columns': col_count,
+                    'actual_cells': len(all_cell_names),
+                    'data': []
+                }
+                
+                # 如果能获取到单元格名称，使用正确的方法遍历
+                if all_cell_names:
+                    # 按单元格名称读取内容
+                    cell_data_dict = {}
+                    for cell_name in all_cell_names:
+                        try:
+                            # 获取单元格对象
+                            cell = table.getCellByName(cell_name)
+                            
+                            # 获取单元格文本内容
+                            cell_text = cell.getString()
+                            
+                            # 获取单元格的其他属性
+                            cell_info = {
+                                'position': cell_name,
+                                'content': cell_text,
+                                'is_merged': False,  # 可以进一步检测合并单元格
+                                'length': len(cell_text)
+                            }
+                            
+                            # 检查是否为合并单元格（改进的检测）
+                            try:
+                                # 检查单元格名称是否包含点号（表示分割单元格）
+                                if '.' in cell_name:
+                                    cell_info['is_split'] = True
+                                    cell_info['parent_cell'] = cell_name.split('.')[0]
+                                else:
+                                    cell_info['is_split'] = False
+                                
+                                # 尝试获取合并信息
+                                if hasattr(cell, 'getColumnSpan') and hasattr(cell, 'getRowSpan'):
+                                    col_span = getattr(cell, 'getColumnSpan', lambda: 1)()
+                                    row_span = getattr(cell, 'getRowSpan', lambda: 1)()
+                                    if col_span > 1 or row_span > 1:
+                                        cell_info['is_merged'] = True
+                                        cell_info['col_span'] = col_span
+                                        cell_info['row_span'] = row_span
+                            except Exception as merge_error:
+                                write_log(f"   检测合并信息时出错 {cell_name}: {str(merge_error)}")
+                            
+                            cell_data_dict[cell_name] = cell_info
+                            
+                            write_log(f"     单元格 {cell_name}: '{cell_text[:30]}'{'...' if len(cell_text) > 30 else ''}")
+                            
+                        except Exception as cell_error:
+                            write_log(f"❌ 读取单元格 {cell_name} 时出错: {str(cell_error)}")
+                            cell_data_dict[cell_name] = {
+                                'position': cell_name,
+                                'content': '',
+                                'error': str(cell_error)
+                            }
+                    
+                    # 尝试重新组织数据为行列结构（基于单元格名称）
+                    organized_data = []
+                    max_row = 0
+                    max_col = 0
+                    
+                    # 解析单元格名称以确定实际的表格结构
+                    cell_positions = {}
+                    for cell_name in cell_data_dict.keys():
+                        try:
+                            # 解析基本单元格名称（忽略分割后的.1.1部分）
+                            base_name = cell_name.split('.')[0] if '.' in cell_name else cell_name
+                            
+                            # 解析列字母和行数字
+                            col_letters = ""
+                            row_digits = ""
+                            for char in base_name:
+                                if char.isalpha():
+                                    col_letters += char
+                                elif char.isdigit():
+                                    row_digits += char
+                            
+                            if col_letters and row_digits:
+                                # 将列字母转换为数字（A=0, B=1, ...）
+                                col_num = 0
+                                for i, char in enumerate(reversed(col_letters.upper())):
+                                    col_num += (ord(char) - ord('A') + 1) * (26 ** i)
+                                col_num -= 1  # 转换为0基索引
+                                
+                                row_num = int(row_digits) - 1  # 转换为0基索引
+                                
+                                cell_positions[cell_name] = (row_num, col_num)
+                                max_row = max(max_row, row_num)
+                                max_col = max(max_col, col_num)
+                        except Exception as parse_error:
+                            write_log(f"   解析单元格位置失败 {cell_name}: {str(parse_error)}")
+                    
+                    # 创建行列结构的数据
+                    for row_idx in range(max_row + 1):
+                        row_data = []
+                        for col_idx in range(max_col + 1):
+                            # 查找该位置的单元格
+                            found_cell = None
+                            for cell_name, (r, c) in cell_positions.items():
+                                if r == row_idx and c == col_idx:
+                                    found_cell = cell_data_dict[cell_name]
+                                    break
+                            
+                            if found_cell:
+                                row_data.append(found_cell)
+                            else:
+                                # 该位置可能被合并或不存在
+                                row_data.append({
+                                    'position': f"{chr(65 + col_idx)}{row_idx + 1}",
+                                    'content': '[合并或空]',
+                                    'is_merged_target': True
+                                })
+                        
+                        organized_data.append(row_data)
+                    
+                    table_data['data'] = organized_data
+                    table_data['actual_structure'] = f"{max_row + 1} 行 x {max_col + 1} 列"
+                    
+                else:
+                    # 回退到原来的方法（如果getCellNames失败）
+                    write_log("   回退到传统行列遍历方法")
+                    for row_idx in range(row_count):
+                        row_data = []
+                        for col_idx in range(col_count):
+                            try:
+                                # 获取单元格名称（如A1, B1, A2等）
+                                cell_name = f"{chr(65 + col_idx)}{row_idx + 1}"
+                                
+                                # 获取单元格对象
+                                cell = table.getCellByName(cell_name)
+                                
+                                # 获取单元格文本内容
+                                cell_text = cell.getString()
+                                
+                                # 获取单元格的其他属性
+                                cell_info = {
+                                    'position': cell_name,
+                                    'content': cell_text,
+                                    'is_merged': False,
+                                    'length': len(cell_text)
+                                }
+                                
+                                row_data.append(cell_info)
+                                
+                            except Exception as cell_error:
+                                write_log(f"❌ 读取单元格 {chr(65 + col_idx)}{row_idx + 1} 时出错: {str(cell_error)}")
+                                row_data.append({
+                                    'position': f"{chr(65 + col_idx)}{row_idx + 1}",
+                                    'content': '',
+                                    'error': str(cell_error)
+                                })
+                        
+                        table_data['data'].append(row_data)
+                
+                result_data['tables'].append(table_data)
+                write_log(f"✅ 表格 {table_name} 解析完成")
+                
+        except Exception as table_error:
+            write_log(f"⚠️ 表格处理过程中出现错误: {str(table_error)}")
+            result_data['table_error'] = str(table_error)
+        
+        # === 生成结构化内容摘要 ===
+        content_summary = []
+        content_summary.append(f"📄 文档类型: {result_data['document_type']}")
+        content_summary.append(f"📄 文档总长度: {content_length} 字符")
+        content_summary.append(f"📊 表格数量: {len(result_data['tables'])} 个")
+        
+        # 表格内容摘要
+        for i, table in enumerate(result_data['tables']):
+            # 显示基础信息和实际结构
+            basic_info = f"📊 表格 {i+1} ({table['name']}): {table['rows']}行 x {table['columns']}列"
+            if 'actual_structure' in table:
+                basic_info += f" (实际: {table['actual_structure']})"
+            if 'actual_cells' in table:
+                basic_info += f", {table['actual_cells']} 个单元格"
+            content_summary.append(basic_info)
+            
+            # 显示表格前几行的内容预览
+            if table['data'] and len(table['data']) > 0:
+                content_summary.append("   表格内容预览:")
+                for row_idx, row in enumerate(table['data'][:3]):  # 只显示前3行
+                    row_cells = []
+                    for cell in row[:5]:  # 只显示前5列
+                        cell_content = cell.get('content', '')
+                        if cell.get('is_merged_target'):
+                            cell_content = '[合并]'
+                        elif cell.get('is_split'):
+                            cell_content = f"[分割]{cell_content[:15]}"
+                        else:
+                            cell_content = cell_content[:20]
+                        row_cells.append(cell_content)
+                    row_text = " | ".join(row_cells)
+                    content_summary.append(f"   行{row_idx+1}: {row_text}")
+                if len(table['data']) > 3:
+                    content_summary.append(f"   ... (还有 {len(table['data']) - 3} 行)")
+        
+        # 普通文本内容预览
+        if content_length > 0:
+            text_preview = document_content[:300] + ("..." if content_length > 300 else "")
+            content_summary.append(f"📄 文本内容预览: {text_preview}")
+        
+        write_log(f"📊 内容解析完成: {len(result_data['tables'])} 个表格, {content_length} 字符文本")
         
         # 在文档末尾插入获取内容的确认消息
         cursor = text.createTextCursor()
         cursor.gotoEnd(False)
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        confirmation_msg = f"\n[{timestamp}] 📄 已通过Python API获取文档内容，总计 {content_length} 字符\n"
-        text.insertString(cursor, confirmation_msg, False)
-        write_log("已在文档末尾插入确认消息")
+        
+        # === 构建完整的解析结果插入到文档中 ===
+        detailed_result = [
+            f"\n{'='*60}",
+            f"[{timestamp}] 📄 文档内容解析结果",
+            f"{'='*60}",
+            f"📄 文档类型: {result_data['document_type']}",
+            f"📄 文档总长度: {content_length} 字符",
+            f"📊 表格数量: {len(result_data['tables'])} 个",
+            ""
+        ]
+        
+        # 添加表格详细内容
+        if result_data['tables']:
+            detailed_result.append("📊 表格详细内容:")
+            detailed_result.append("-" * 40)
+            
+            for i, table in enumerate(result_data['tables']):
+                detailed_result.append(f"\n📊 表格 {i+1}: {table['name']}")
+                table_info = f"   尺寸: {table['rows']} 行 x {table['columns']} 列"
+                if 'actual_structure' in table:
+                    table_info += f" (实际: {table['actual_structure']})"
+                if 'actual_cells' in table:
+                    table_info += f", {table['actual_cells']} 个单元格"
+                detailed_result.append(table_info)
+                detailed_result.append("   内容:")
+                
+                # 显示表格的完整内容
+                for row_idx, row in enumerate(table['data']):
+                    row_cells = []
+                    for cell in row:
+                        cell_content = cell.get('content', '')
+                        
+                        # 处理不同类型的单元格
+                        if cell.get('is_merged_target'):
+                            cell_display = f"{cell['position']}:[合并单元格]"
+                        elif cell.get('is_split'):
+                            parent = cell.get('parent_cell', '')
+                            cell_display = f"{cell['position']}(分割自{parent}):{cell_content[:20]}"
+                        elif cell.get('error'):
+                            cell_display = f"{cell['position']}:[错误:{cell['error'][:15]}]"
+                        else:
+                            if not cell_content:
+                                cell_content = '[空]'
+                            # 限制单元格显示长度，避免过长
+                            if len(cell_content) > 25:
+                                cell_content = cell_content[:25] + "..."
+                            cell_display = f"{cell['position']}:{cell_content}"
+                        
+                        row_cells.append(cell_display)
+                    
+                    detailed_result.append(f"     行{row_idx+1}: {' | '.join(row_cells)}")
+                
+                detailed_result.append("")
+        else:
+            detailed_result.append("📊 文档中没有发现表格")
+        
+        # 添加文本内容
+        detailed_result.append("\n📄 文档文本内容:")
+        detailed_result.append("-" * 40)
+        if document_content.strip():
+            # 将长文本分段显示，每行最多100字符
+            text_lines = []
+            remaining_text = document_content
+            while remaining_text:
+                if len(remaining_text) <= 100:
+                    text_lines.append(remaining_text)
+                    break
+                else:
+                    # 尝试在合适的位置断行（句号、换行符等）
+                    break_pos = 100
+                    for break_char in ['。', '\n', '！', '？', '.', '!', '?']:
+                        pos = remaining_text[:100].rfind(break_char)
+                        if pos > 50:  # 至少要有50个字符
+                            break_pos = pos + 1
+                            break
+                    
+                    text_lines.append(remaining_text[:break_pos])
+                    remaining_text = remaining_text[break_pos:]
+            
+            for line_idx, line in enumerate(text_lines[:20]):  # 最多显示20行
+                detailed_result.append(f"   {line_idx+1:2d}: {line}")
+            
+            if len(text_lines) > 20:
+                detailed_result.append(f"   ... (还有 {len(text_lines) - 20} 行文本)")
+        else:
+            detailed_result.append("   [文档文本为空]")
+        
+        detailed_result.append(f"\n{'='*60}")
+        detailed_result.append(f"解析完成时间: {timestamp}")
+        detailed_result.append(f"{'='*60}\n")
+        
+        # 将完整结果插入到文档中
+        complete_result_text = "\n".join(detailed_result)
+        text.insertString(cursor, complete_result_text, False)
+        write_log("已在文档末尾插入完整的解析结果")
         
         write_log("=== get_document_content() 函数执行完成 ===")
         
-        # 返回内容摘要（避免返回过长的内容）
-        if content_length > 500:
-            preview = document_content[:500] + "...(内容过长，已截断)"
-        else:
-            preview = document_content
-            
-        result = {
-            'status': 'SUCCESS',
-            'content_length': content_length,
-            'document_type': document_info['document_type'],
-            'content_preview': preview,
-            'full_content': document_content  # 完整内容也返回，以备需要
-        }
-        
-        return f"SUCCESS: 已获取文档内容 - 长度: {content_length} 字符"
+        # 返回内容摘要
+        summary_text = "\n".join(content_summary)
+        return f"SUCCESS: {summary_text}"
         
     except Exception as e:
         error_msg = f"ERROR in get_document_content(): {str(e)}"
