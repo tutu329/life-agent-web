@@ -123,6 +123,25 @@ function App() {
     return () => window.removeEventListener('resize', handleResize)
   }, [leftSiderCollapsed])
 
+  // 监听快捷键 Ctrl+1 或 Command+1 来切换资源面板
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // 检查是否按下了 Ctrl+1 (Windows/Linux) 或 Command+1 (Mac)
+      if ((event.ctrlKey || event.metaKey) && event.key === '1') {
+        event.preventDefault() // 阻止默认行为
+        toggleLeftSider()
+      }
+    }
+
+    // 添加键盘事件监听器
+    document.addEventListener('keydown', handleKeyDown)
+    
+    // 清理函数
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [leftSiderCollapsed]) // 依赖leftSiderCollapsed以确保toggleLeftSider有正确的状态
+
   // 获取所有模型配置（默认+自定义）
   const getAllModels = (): Record<string, ModelConfig> => ({...DEFAULT_MODEL_PRESETS, ...customModels})
 
