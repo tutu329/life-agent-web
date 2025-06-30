@@ -861,6 +861,41 @@ const EditorPanel: React.FC = () => {
     }
   }
 
+  // 测试章节选中功能
+  const testSelectChapter = () => {
+    if (!iframeRef.current) {
+      console.log('❌ iframe未准备好')
+      messageApi.error('文档编辑器未准备好')
+      return
+    }
+
+    console.log('📝 测试章节选中功能 - 选中章节2.1')
+    
+    // 使用官方正确格式调用select_chapter函数
+    const selectChapterFormat = {
+      'MessageId': 'CallPythonScript',
+      'SendTime': Date.now(),
+      'ScriptFile': 'office_api.py',
+      'Function': 'select_chapter',
+      'Values': {
+        'chapter': {'type': 'string', 'value': '2.1'}
+      }
+    }
+    
+    console.log('📤 章节选中格式（官方正确格式）:', selectChapterFormat)
+    setReceivedMessages(prev => [...prev.slice(-9), '📝 测试章节选中2.1'])
+    
+    try {
+      iframeRef.current.contentWindow?.postMessage(JSON.stringify({'MessageId': 'Host_PostmessageReady'}), '*')
+      iframeRef.current.contentWindow?.postMessage(JSON.stringify(selectChapterFormat), collaboraUrl)
+      
+      messageApi.info('✅ 已发送章节选中请求！')
+    } catch (error) {
+      console.error('❌ 发送章节选中请求失败:', error)
+      messageApi.error('发送章节选中请求失败')
+    }
+  }
+
 
 
   const items = [
@@ -979,6 +1014,15 @@ const EditorPanel: React.FC = () => {
               type="primary"
             >
               官方格式-搜索hello
+            </Button>
+            <Button 
+              size="small" 
+              onClick={testSelectChapter}
+              disabled={!documentReady}
+              type="primary"
+              style={{ background: '#52c41a', borderColor: '#52c41a' }}
+            >
+              测试章节选中
             </Button>
 
             <span style={{ fontSize: '11px', color: '#999' }}>

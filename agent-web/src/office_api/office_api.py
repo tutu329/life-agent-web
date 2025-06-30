@@ -780,6 +780,290 @@ write_log("📦📦📦 office_api.py 模块已加载 (这只是导入时执行)
 write_log(f"模块加载时间: {datetime.datetime.now()}")
 write_log("如果您看到这条消息但没有看到函数调用日志，说明函数没有被实际调用")
 
+def select_chapter(chapter="2.1"):
+    """选中指定章节的完整内容"""
+    write_log(f"📖📖📖 select_chapter() 函数被调用！章节: {chapter}")
+    write_log("=== select_chapter() 函数开始执行 ===")
+    
+    try:
+        write_log("尝试获取XSCRIPTCONTEXT...")
+        
+        # 获取文档上下文
+        desktop = XSCRIPTCONTEXT.getDesktop()
+        write_log("成功获取desktop")
+        
+        model = desktop.getCurrentComponent()
+        write_log(f"获取当前文档组件: {model}")
+
+        if not model:
+            write_log("ERROR: 没有打开的文档")
+            return "ERROR: 没有打开的文档"
+
+        # 获取文档的文本内容
+        text = model.getText()
+        write_log("成功获取文档文本对象")
+        
+        # 创建用于搜索的枚举器
+        paragraph_enum = text.createEnumeration()
+        write_log("成功创建段落枚举器")
+        
+        # 存储所有段落的信息
+        paragraphs = []
+        paragraph_index = 0
+        
+        # 遍历所有段落
+        while paragraph_enum.hasMoreElements():
+            paragraph = paragraph_enum.nextElement()
+            paragraph_text = paragraph.getString()
+            
+            # 获取段落样式信息
+            paragraph_style = ""
+            try:
+                paragraph_style = paragraph.getPropertyValue("ParaStyleName")
+            except:
+                paragraph_style = "普通"
+            
+            paragraphs.append({
+                'index': paragraph_index,
+                'text': paragraph_text,
+                'style': paragraph_style,
+                'paragraph_obj': paragraph
+            })
+            
+            paragraph_index += 1
+        
+        write_log(f"总共找到 {len(paragraphs)} 个段落")
+        
+        # 解析章节编号的层级
+        def parse_chapter_level(chapter_num):
+            """解析章节编号的层级，返回层级列表"""
+            return [int(x) for x in chapter_num.split('.') if x.isdigit()]
+        
+        # 检查是否为章节标题
+        import re
+        def is_chapter_title(text, style):
+            """判断是否为正文章节标题（不是目录项）"""
+            text = text.strip()
+            
+            # 首先检查是否为目录项格式，如果是则不能是正文章节标题
+            if is_toc_item_format(text):
+                return False
+            
+            # 检查样式是否为标题类型
+            if style and ("标题" in style or "Heading" in style):
+                return True
+            
+            # 通过正则表达式检查章节编号模式
+            chapter_pattern = r'^(\d+(?:\.\d+)*)\s+'
+            match = re.match(chapter_pattern, text)
+            if match:
+                # 确保不是目录项：检查是否以页码结尾
+                if not re.search(r'\s+\d+$', text):  # 不以空格+数字结尾
+                    return True
+            
+            return False
+        
+        # 首先识别目录区域
+        def find_table_of_contents_area(all_paragraphs):
+            """识别文档中的目录区域，返回(开始索引, 结束索引)"""
+            toc_start = -1
+            toc_end = -1
+            
+            # 查找包含"目录"字样的段落
+            for i, para in enumerate(all_paragraphs):
+                text = para['text'].strip()
+                if text == "目录" or "目录" in text:
+                    write_log(f"找到目录标题: 第{i}段 - {text}")
+                    toc_start = i
+                    break
+            
+            if toc_start != -1:
+                # 从目录标题开始查找目录结束位置
+                for i in range(toc_start + 1, min(toc_start + 50, len(all_paragraphs))):  # 限制在50段内查找
+                    text = all_paragraphs[i]['text'].strip()
+                    
+                    # 如果不是目录项格式，且不是空行，可能是目录结束
+                    if text and not is_toc_item_format(text):
+                        # 检查是否是正文章节开始
+                        if is_chapter_title(text, all_paragraphs[i]['style']):
+                            toc_end = i
+                            write_log(f"目录结束: 第{i}段，下一个是正文章节: {text[:50]}...")
+                            break
+                
+                # 如果没找到明确结束，使用启发式方法
+                if toc_end == -1:
+                    toc_end = min(toc_start + 30, len(all_paragraphs))  # 假设目录不超过30段
+                    write_log(f"目录结束(启发式): 第{toc_end}段")
+            
+            write_log(f"目录区域: 第{toc_start}段 到 第{toc_end}段")
+            return toc_start, toc_end
+        
+        def is_toc_item_format(text):
+            """判断是否为目录项格式"""
+            text = text.strip()
+            if not text:
+                return False
+                
+            # 目录项特征：章节编号 + 标题 + 页码
+            # 如："1.1 基本情况 1" 或 "2.1 建设现状 5"
+            toc_patterns = [
+                r'^(\d+(?:\.\d+)*)\s+\S.*\s+(\d+)$',  # 编号 + 标题 + 页码
+                r'^(\d+(?:\.\d+)*)\s+.*\t+(\d+)$',    # 编号 + 标题 + 制表符 + 页码
+                r'^(\d+(?:\.\d+)*)\s+.*\.+\s*(\d+)$', # 编号 + 标题 + 点填充 + 页码
+            ]
+            
+            for pattern in toc_patterns:
+                if re.match(pattern, text):
+                    return True
+            return False
+        
+        # 检查是否为目录项（改进版）
+        def is_table_of_contents(text, index, all_paragraphs, toc_start, toc_end):
+            """判断是否为目录项"""
+            # 如果在目录区域内，且符合目录项格式
+            if toc_start <= index <= toc_end:
+                return is_toc_item_format(text)
+            return False
+        
+        # 首先识别目录区域
+        toc_start, toc_end = find_table_of_contents_area(paragraphs)
+        
+        # 查找目标章节和下一个章节
+        target_chapter_level = parse_chapter_level(chapter)
+        target_start_index = -1
+        target_end_index = len(paragraphs)
+        
+        write_log(f"目标章节 '{chapter}' 的层级: {target_chapter_level}")
+        
+        # 第一遍：查找目标章节的开始位置（只在目录区域之外查找）
+        search_start = max(0, toc_end + 1) if toc_end != -1 else 0
+        write_log(f"从第{search_start}段开始搜索正文章节（跳过目录区域）")
+        
+        for i in range(search_start, len(paragraphs)):
+            para = paragraphs[i]
+            para_text = para['text'].strip()
+            para_style = para['style']
+            
+            # 跳过空段落
+            if not para_text:
+                continue
+            
+            # 跳过目录项（双重保险）
+            if is_table_of_contents(para_text, i, paragraphs, toc_start, toc_end):
+                write_log(f"跳过目录项: 第{i}段 - {para_text[:30]}...")
+                continue
+            
+            # 检查是否为章节标题
+            if is_chapter_title(para_text, para_style):
+                # 提取章节编号
+                chapter_pattern = r'^(\d+(?:\.\d+)*)'
+                match = re.match(chapter_pattern, para_text)
+                if match:
+                    found_chapter = match.group(1)
+                    write_log(f"找到正文章节标题 ({para_style}): {found_chapter} - {para_text[:50]}...")
+                    
+                    # 检查是否为目标章节
+                    if found_chapter == chapter:
+                        target_start_index = i
+                        write_log(f"✅ 找到目标章节开始位置: 第{i}段")
+                        break
+        
+        if target_start_index == -1:
+            error_msg = f"未找到章节 '{chapter}'"
+            write_log(f"ERROR: {error_msg}")
+            return f"ERROR: {error_msg}"
+        
+        # 第二遍：查找目标章节的结束位置（下一个同级或更高级章节）
+        for i in range(target_start_index + 1, len(paragraphs)):
+            para_text = paragraphs[i]['text'].strip()
+            para_style = paragraphs[i]['style']
+            
+            # 跳过空段落和目录项
+            if not para_text or is_table_of_contents(para_text, i, paragraphs, toc_start, toc_end):
+                continue
+            
+            # 检查是否为章节标题
+            if is_chapter_title(para_text, para_style):
+                chapter_pattern = r'^(\d+(?:\.\d+)*)'
+                match = re.match(chapter_pattern, para_text)
+                if match:
+                    found_chapter = match.group(1)
+                    found_level = parse_chapter_level(found_chapter)
+                    
+                    # 判断是不是下一个章节
+                    # 如果层级相同或更高（数字更少），则为结束位置
+                    if len(found_level) <= len(target_chapter_level):
+                        # 检查是否为同级的下一个章节或更高级章节
+                        if (len(found_level) == len(target_chapter_level) and 
+                            found_level[:-1] == target_chapter_level[:-1] and 
+                            found_level[-1] > target_chapter_level[-1]) or \
+                           len(found_level) < len(target_chapter_level):
+                            target_end_index = i
+                            write_log(f"✅ 找到章节结束位置: 第{i}段 (下一章节: {found_chapter})")
+                            break
+        
+        write_log(f"章节范围: 第{target_start_index}段 到 第{target_end_index-1}段")
+        
+        # 创建文本光标并选择范围
+        cursor = text.createTextCursor()
+        
+        # 移动到目标章节开始位置
+        start_paragraph = paragraphs[target_start_index]['paragraph_obj']
+        cursor.gotoRange(start_paragraph.getStart(), False)
+        
+        # 扩展选择到章节结束位置
+        if target_end_index < len(paragraphs):
+            end_paragraph = paragraphs[target_end_index - 1]['paragraph_obj']
+            cursor.gotoRange(end_paragraph.getEnd(), True)
+        else:
+            # 如果是最后一个章节，选择到文档末尾
+            cursor.gotoEnd(True)
+        
+        # 选择文本范围
+        model.getCurrentController().select(cursor)
+        
+        # 在文档末尾插入确认消息
+        text_cursor = text.createTextCursor()
+        text_cursor.gotoEnd(False)
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # 统计选中的内容
+        selected_paragraphs = target_end_index - target_start_index
+        selected_text = cursor.getString()
+        
+        confirmation_msg = f"\n[{timestamp}] 📖 章节选择完成:\n"
+        confirmation_msg += f"   章节: {chapter}\n"
+        confirmation_msg += f"   范围: 第{target_start_index+1}段 到 第{target_end_index}段\n"
+        confirmation_msg += f"   段落数: {selected_paragraphs}\n"
+        confirmation_msg += f"   字符数: {len(selected_text)}\n"
+        confirmation_msg += f"   内容预览: {selected_text[:100]}{'...' if len(selected_text) > 100 else ''}\n"
+        
+        text.insertString(text_cursor, confirmation_msg, False)
+        write_log("已在文档末尾插入选择确认消息")
+        
+        write_log("=== select_chapter() 函数执行完成 ===")
+        return f"SUCCESS: 成功选中章节 '{chapter}' ({selected_paragraphs}段，{len(selected_text)}字符)"
+        
+    except Exception as e:
+        error_msg = f"ERROR in select_chapter(): {str(e)}"
+        error_traceback = traceback.format_exc()
+        write_log(f"{error_msg}\n{error_traceback}")
+        
+        # 尝试在文档中也显示错误信息
+        try:
+            desktop = XSCRIPTCONTEXT.getDesktop()
+            model = desktop.getCurrentComponent()
+            if model:
+                text = model.getText()
+                cursor = text.createTextCursor()
+                cursor.gotoEnd(False)
+                error_display = f"\n[ERROR] select_chapter() 执行失败: {str(e)}\n"
+                text.insertString(cursor, error_display, False)
+        except:
+            pass
+            
+        return error_msg
+
 # LibreOffice/Collabora CODE 要求导出函数
 # 这是必须的，否则CallPythonScript无法找到函数
-g_exportedScripts = (hello, get_document_content, test_uno_connection, simple_test, debug_params, search_and_format_text, search_and_replace_with_format,) 
+g_exportedScripts = (hello, get_document_content, test_uno_connection, simple_test, debug_params, search_and_format_text, search_and_replace_with_format, select_chapter,) 
