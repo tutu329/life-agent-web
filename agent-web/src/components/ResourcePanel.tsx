@@ -1,8 +1,9 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { Tree, Typography, Upload, Button, message, Popconfirm } from 'antd'
 import { FolderOutlined, FileOutlined, UploadOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { TreeDataNode } from 'antd'
 import type { UploadFile } from 'antd/es/upload/interface'
+import { fileService, type FileInfo } from '../services/fileService'
 
 const { Title } = Typography
 const { Dragger } = Upload
@@ -14,6 +15,7 @@ interface FileItem {
   originalName: string
   size: number
   uploadTime: Date
+  serverInfo?: FileInfo // 添加服务器文件信息
 }
 
 // 支持的文件类型
@@ -33,7 +35,73 @@ const ResourcePanel: React.FC = () => {
   const [selectedKeys, setSelectedKeys] = useState<React.Key[]>([])
   const [expandedKeys, setExpandedKeys] = useState<React.Key[]>(['template', 'shared'])
   const [uploadingForType, setUploadingForType] = useState<'template' | 'shared' | null>(null)
+  const [loading, setLoading] = useState(false)
   const uploadRef = useRef<any>(null)
+
+  // 从服务器加载文件列表
+  useEffect(() => {
+    loadFilesFromServer()
+  }, [])
+
+  const loadFilesFromServer = async () => {
+    setLoading(true)
+    try {
+      console.log('🔄 开始从服务器加载文件列表...')
+      
+      const [templateFiles, sharedFiles] = await Promise.all([
+        fileService.getFileList('template'),
+        fileService.getFileList('shared')
+      ])
+
+      console.log('📋 模板文件:', templateFiles)
+      console.log('📋 共享文件:', sharedFiles)
+
+      const allFiles: FileItem[] = [
+        ...templateFiles.map(file => ({
+          key: `template_${file.name}`,
+          title: file.name,
+          type: 'template' as const,
+          originalName: file.name,
+          size: file.size,
+          uploadTime: new Date(file.uploadTime),
+          serverInfo: file
+        })),
+        ...sharedFiles.map(file => ({
+          key: `shared_${file.name}`,
+          title: file.name,
+          type: 'shared' as const,
+          originalName: file.name,
+          size: file.size,
+          uploadTime: new Date(file.uploadTime),
+          serverInfo: file
+        }))
+      ]
+
+      console.log('📁 处理后的文件列表:', allFiles)
+      setUploadedFiles(allFiles)
+      
+      if (allFiles.length > 0) {
+        message.success(`成功加载 ${allFiles.length} 个文件`)
+      } else {
+        message.info('暂无上传的文件')
+      }
+    } catch (error) {
+      console.error('❌ 加载文件列表失败:', error)
+      const errorMessage = error instanceof Error ? error.message : '未知错误'
+      message.error({
+        content: `加载文件列表失败: ${errorMessage}`,
+        duration: 10,
+        onClick: () => {
+          // 点击错误消息可以重试
+          loadFilesFromServer()
+        }
+      })
+      // 设置空列表，避免显示旧数据
+      setUploadedFiles([])
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // 生成树数据
   const generateTreeData = (): TreeDataNode[] => {
@@ -152,28 +220,41 @@ const ResourcePanel: React.FC = () => {
   }
 
   // 处理文件上传
-  const handleFileUpload = (file: File, type: 'template' | 'shared'): boolean => {
+  const handleFileUpload = async (file: File, type: 'template' | 'shared'): Promise<boolean> => {
     if (!checkFileType(file)) {
       message.error(`不支持的文件类型。支持的格式：${SUPPORTED_FILE_TYPES.join(', ')}`)
       return false
     }
 
-    const fileKey = `${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    const newFile: FileItem = {
-      key: fileKey,
-      title: file.name,
-      type: type,
-      originalName: file.name,
-      size: file.size,
-      uploadTime: new Date(),
-    }
+    try {
+      message.loading({ content: `正在上传 "${file.name}"...`, key: 'upload' })
+      
+      const result = await fileService.uploadFile(file, type)
+      
+      if (result.success && result.file) {
+        const newFile: FileItem = {
+          key: `${type}_${result.file.name}`,
+          title: result.file.name,
+          type: type,
+          originalName: result.file.name,
+          size: result.file.size,
+          uploadTime: new Date(result.file.uploadTime),
+          serverInfo: result.file
+        }
 
-    setUploadedFiles(prevFiles => [...prevFiles, newFile])
-    message.success(`文件 "${file.name}" 上传成功`)
-    
-    // 自动展开对应的文件夹
-    if (!expandedKeys.includes(type)) {
-      setExpandedKeys(prev => [...prev, type])
+        setUploadedFiles(prevFiles => [...prevFiles, newFile])
+        message.success({ content: `文件 "${file.name}" 上传成功`, key: 'upload' })
+        
+        // 自动展开对应的文件夹
+        if (!expandedKeys.includes(type)) {
+          setExpandedKeys(prev => [...prev, type])
+        }
+      } else {
+        message.error({ content: `上传失败: ${result.error}`, key: 'upload' })
+      }
+    } catch (error) {
+      console.error('Upload failed:', error)
+      message.error({ content: '上传失败', key: 'upload' })
     }
 
     return false // 阻止默认上传行为
@@ -187,12 +268,13 @@ const ResourcePanel: React.FC = () => {
     input.type = 'file'
     input.multiple = true
     input.accept = SUPPORTED_FILE_TYPES.join(',')
-    input.onchange = (e) => {
+    input.onchange = async (e) => {
       const files = (e.target as HTMLInputElement).files
       if (files) {
-        Array.from(files).forEach(file => {
+        const uploadPromises = Array.from(files).map(file => 
           handleFileUpload(file, type)
-        })
+        )
+        await Promise.all(uploadPromises)
       }
       setUploadingForType(null)
     }
@@ -208,8 +290,11 @@ const ResourcePanel: React.FC = () => {
       
       // 找到选中的文件信息
       const selectedFile = uploadedFiles.find(file => file.key === selectedKeys[0])
-      if (selectedFile) {
+      if (selectedFile && selectedFile.serverInfo) {
         console.log('Selected file info:', selectedFile)
+        // 生成文件下载URL
+        const downloadUrl = fileService.getFileUrl(selectedFile.type, selectedFile.serverInfo.name)
+        console.log('File download URL:', downloadUrl)
         // 这里可以触发回调或者更新全局状态，供其他组件使用
       }
     } else {
@@ -224,10 +309,29 @@ const ResourcePanel: React.FC = () => {
   }
 
   // 删除文件
-  const handleDeleteFile = (fileKey: string) => {
-    setUploadedFiles(prevFiles => prevFiles.filter(file => file.key !== fileKey))
-    setSelectedKeys(prevKeys => prevKeys.filter(key => key !== fileKey))
-    message.success('文件已删除')
+  const handleDeleteFile = async (fileKey: string) => {
+    const file = uploadedFiles.find(f => f.key === fileKey)
+    if (!file || !file.serverInfo) {
+      message.error('文件信息不完整，无法删除')
+      return
+    }
+
+    try {
+      message.loading({ content: `正在删除 "${file.title}"...`, key: 'delete' })
+      
+      const success = await fileService.deleteFile(file.type, file.serverInfo.name)
+      
+      if (success) {
+        setUploadedFiles(prevFiles => prevFiles.filter(f => f.key !== fileKey))
+        setSelectedKeys(prevKeys => prevKeys.filter(key => key !== fileKey))
+        message.success({ content: '文件已删除', key: 'delete' })
+      } else {
+        message.error({ content: '删除失败', key: 'delete' })
+      }
+    } catch (error) {
+      console.error('Delete failed:', error)
+      message.error({ content: '删除失败', key: 'delete' })
+    }
   }
 
   // 拖拽上传的props
@@ -235,9 +339,10 @@ const ResourcePanel: React.FC = () => {
     name: 'file',
     multiple: true,
     accept: SUPPORTED_FILE_TYPES.join(','),
-    beforeUpload: (file: UploadFile) => {
+    beforeUpload: async (file: UploadFile) => {
       const originFile = file.originFileObj || (file as unknown as File)
-      return handleFileUpload(originFile, type)
+      await handleFileUpload(originFile, type)
+      return false // 阻止默认上传行为
     },
     onDrop(e: React.DragEvent<HTMLDivElement>) {
       console.log('Dropped files', e.dataTransfer.files)
@@ -247,9 +352,21 @@ const ResourcePanel: React.FC = () => {
 
   return (
     <div style={{ padding: '8px 16px 16px 16px', height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Title level={5} style={{ marginBottom: '16px', color: '#2c3e50', fontSize: '12px', marginTop: '0' }}>
-        资源
-      </Title>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+        <Title level={5} style={{ margin: 0, color: '#2c3e50', fontSize: '12px' }}>
+          资源
+        </Title>
+        <Button 
+          type="text" 
+          size="small" 
+          loading={loading}
+          onClick={loadFilesFromServer}
+          style={{ fontSize: '10px', height: '20px', padding: '0 4px' }}
+          title="刷新文件列表"
+        >
+          🔄
+        </Button>
+      </div>
       
       <div style={{ flex: 1, overflow: 'auto' }}>
         <Tree

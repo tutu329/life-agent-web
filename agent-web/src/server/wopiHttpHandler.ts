@@ -10,7 +10,7 @@ const PORT = 5103 // WOPI 服务器端口
 
 // 中间件
 app.use(cors({
-  origin: ['https://powerai.cc:5102', 'http://powerai.cc:5101', 'http://localhost:5173'],
+  origin: ['https://powerai.cc:5102', 'https://powerai.cc:5101', 'http://powerai.cc:5101', 'http://localhost:5173'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
@@ -26,10 +26,38 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 app.use(express.json())
 app.use(express.raw({ type: 'application/octet-stream', limit: '50mb' }))
 
+// 创建上传目录
+const ensureUploadsDir = () => {
+  const uploadsDir = path.join(process.cwd(), 'uploads')
+  const templateDir = path.join(uploadsDir, 'template')
+  const sharedDir = path.join(uploadsDir, 'shared')
+  
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true })
+  }
+  if (!fs.existsSync(templateDir)) {
+    fs.mkdirSync(templateDir, { recursive: true })
+  }
+  if (!fs.existsSync(sharedDir)) {
+    fs.mkdirSync(sharedDir, { recursive: true })
+  }
+}
+
+// 确保上传目录存在
+ensureUploadsDir()
+
 // WOPI 协议路由
 
 // OPTIONS 预检请求处理
 app.options('/wopi/*', (req: Request, res: Response) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*')
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin')
+  res.status(200).send()
+})
+
+// 文件管理API的OPTIONS处理
+app.options('/api/files/*', (req: Request, res: Response) => {
   res.header('Access-Control-Allow-Origin', req.headers.origin || '*')
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin')
@@ -187,6 +215,277 @@ print('文档已更新')
   } catch (error) {
     console.error('❌ 文本插入失败:', error)
     res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// 文件管理API
+// 获取文件列表
+app.get('/api/files/list/:type', (req: Request, res: Response) => {
+  const { type } = req.params
+  
+  if (type !== 'template' && type !== 'shared') {
+    return res.status(400).json({ error: 'Invalid file type' })
+  }
+  
+  try {
+    const dir = path.join(process.cwd(), 'uploads', type)
+    if (!fs.existsSync(dir)) {
+      return res.json({ files: [] })
+    }
+    
+    const files = fs.readdirSync(dir).map(filename => {
+      const filepath = path.join(dir, filename)
+      const stats = fs.statSync(filepath)
+      
+      return {
+        name: filename,
+        size: stats.size,
+        type: path.extname(filename).toLowerCase(),
+        uploadTime: stats.birthtime.toISOString(),
+        path: filepath
+      }
+    })
+    
+    res.json({ files })
+  } catch (error) {
+    console.error('Failed to list files:', error)
+    res.status(500).json({ error: 'Failed to list files' })
+  }
+})
+
+// 上传文件 (简单上传，直接传输文件内容)
+app.post('/api/files/upload/:type/:filename', (req: Request, res: Response) => {
+  const { type } = req.params
+  let { filename } = req.params
+  
+  // URL解码文件名，处理中文文件名
+  try {
+    filename = decodeURIComponent(filename)
+  } catch (e) {
+    console.error('Failed to decode filename:', filename)
+  }
+  
+  console.log(`📤 上传请求: type=${type}, filename=${filename}`)
+  
+  if (type !== 'template' && type !== 'shared') {
+    return res.status(400).json({ error: 'Invalid file type' })
+  }
+  
+  try {
+    const uploadsDir = path.join(process.cwd(), 'uploads', type)
+    const filepath = path.join(uploadsDir, filename)
+    
+    console.log(`📁 上传目录: ${uploadsDir}`)
+    console.log(`📄 文件路径: ${filepath}`)
+    console.log(`📊 请求体大小: ${req.body ? req.body.length : 0} bytes`)
+    
+    // 确保目录存在
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true })
+      console.log(`✅ 创建目录: ${uploadsDir}`)
+    }
+    
+    // 保存文件
+    fs.writeFileSync(filepath, req.body)
+    
+    const stats = fs.statSync(filepath)
+    const fileInfo = {
+      name: filename,
+      size: stats.size,
+      type: path.extname(filename).toLowerCase(),
+      uploadTime: new Date().toISOString(), // 使用当前时间而不是birthtime
+      path: filepath
+    }
+    
+    console.log(`✅ 文件上传成功: ${filepath} (${stats.size} bytes)`)
+    res.json({ success: true, file: fileInfo })
+    
+  } catch (error) {
+    console.error('❌ 上传文件失败:', error)
+    res.status(500).json({ 
+      error: 'Failed to upload file', 
+      details: error instanceof Error ? error.message : 'Unknown error',
+      filename: filename,
+      type: type
+    })
+  }
+})
+
+// 下载文件
+app.get('/api/files/download/:type/:filename', (req: Request, res: Response) => {
+  const { type } = req.params
+  let { filename } = req.params
+  
+  // URL解码文件名，处理中文文件名
+  try {
+    filename = decodeURIComponent(filename)
+  } catch (e) {
+    console.error('Failed to decode filename:', filename)
+  }
+  
+  console.log(`📥 下载请求: type=${type}, filename=${filename}`)
+  
+  if (type !== 'template' && type !== 'shared') {
+    console.error('❌ 无效的文件类型:', type)
+    res.status(400)
+    res.setHeader('Content-Type', 'application/json')
+    return res.json({ error: 'Invalid file type' })
+  }
+  
+  try {
+    const filepath = path.join(process.cwd(), 'uploads', type, filename)
+    console.log(`📁 文件路径: ${filepath}`)
+    console.log(`📊 文件存在: ${fs.existsSync(filepath)}`)
+    
+    if (!fs.existsSync(filepath)) {
+      console.error('❌ 文件不存在:', filepath)
+      
+      // 列出目录中的所有文件以便调试
+      const dir = path.join(process.cwd(), 'uploads', type)
+      if (fs.existsSync(dir)) {
+        const files = fs.readdirSync(dir)
+        console.log(`📋 目录 ${dir} 中的文件:`, files)
+      } else {
+        console.log(`📋 目录 ${dir} 不存在`)
+      }
+      
+      res.status(404)
+      res.setHeader('Content-Type', 'application/json')
+      return res.json({ error: 'File not found', path: filepath })
+    }
+    
+    const stats = fs.statSync(filepath)
+    const ext = path.extname(filename).toLowerCase()
+    
+    console.log(`📏 文件大小: ${stats.size} bytes`)
+    console.log(`📄 文件扩展名: ${ext}`)
+    
+    // 设置适当的content-type
+    let contentType = 'application/octet-stream'
+    if (ext === '.docx') {
+      contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    } else if (ext === '.pdf') {
+      contentType = 'application/pdf'
+    } else if (ext === '.txt') {
+      contentType = 'text/plain'
+    } else if (ext === '.xlsx') {
+      contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    } else if (ext === '.xls') {
+      contentType = 'application/vnd.ms-excel'
+    }
+    
+    res.setHeader('Content-Type', contentType)
+    res.setHeader('Content-Length', stats.size.toString())
+    
+    // 对中文文件名进行正确编码
+    const encodedFilename = encodeURIComponent(filename)
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodedFilename}`)
+    
+    console.log(`✅ 开始传输文件: ${filepath}`)
+    
+    const fileStream = fs.createReadStream(filepath)
+    
+    fileStream.on('error', (streamError) => {
+      console.error('❌ 文件流读取错误:', streamError)
+      if (!res.headersSent) {
+        res.status(500)
+        res.setHeader('Content-Type', 'application/json')
+        res.json({ error: 'File stream error' })
+      }
+    })
+    
+    fileStream.on('end', () => {
+      console.log(`✅ 文件传输完成: ${filename}`)
+    })
+    
+    fileStream.pipe(res)
+    
+  } catch (error) {
+    console.error('❌ 下载文件失败:', error)
+    if (!res.headersSent) {
+      res.status(500)
+      res.setHeader('Content-Type', 'application/json')
+      res.json({ error: 'Failed to download file', details: error instanceof Error ? error.message : 'Unknown error' })
+    }
+  }
+})
+
+// 删除文件
+app.delete('/api/files/delete/:type/:filename', (req: Request, res: Response) => {
+  const { type, filename } = req.params
+  
+  if (type !== 'template' && type !== 'shared') {
+    return res.status(400).json({ error: 'Invalid file type' })
+  }
+  
+  try {
+    const filepath = path.join(process.cwd(), 'uploads', type, filename)
+    
+    if (!fs.existsSync(filepath)) {
+      return res.status(404).json({ error: 'File not found' })
+    }
+    
+    fs.unlinkSync(filepath)
+    res.json({ success: true, message: 'File deleted successfully' })
+    
+  } catch (error) {
+    console.error('Failed to delete file:', error)
+    res.status(500).json({ error: 'Failed to delete file' })
+  }
+})
+
+// 调试API - 列出所有上传的文件
+app.get('/api/files/debug', (req: Request, res: Response) => {
+  try {
+    const uploadsDir = path.join(process.cwd(), 'uploads')
+    const result: any = {
+      uploadsDir,
+      exists: fs.existsSync(uploadsDir),
+      template: { files: [], dir: path.join(uploadsDir, 'template') },
+      shared: { files: [], dir: path.join(uploadsDir, 'shared') }
+    }
+    
+    // 检查模板文件夹
+    const templateDir = path.join(uploadsDir, 'template')
+    if (fs.existsSync(templateDir)) {
+      result.template.exists = true
+      result.template.files = fs.readdirSync(templateDir).map(filename => {
+        const filepath = path.join(templateDir, filename)
+        const stats = fs.statSync(filepath)
+        return {
+          name: filename,
+          size: stats.size,
+          modified: stats.mtime.toISOString(),
+          fullPath: filepath
+        }
+      })
+    } else {
+      result.template.exists = false
+    }
+    
+    // 检查共享文件夹
+    const sharedDir = path.join(uploadsDir, 'shared')
+    if (fs.existsSync(sharedDir)) {
+      result.shared.exists = true
+      result.shared.files = fs.readdirSync(sharedDir).map(filename => {
+        const filepath = path.join(sharedDir, filename)
+        const stats = fs.statSync(filepath)
+        return {
+          name: filename,
+          size: stats.size,
+          modified: stats.mtime.toISOString(),
+          fullPath: filepath
+        }
+      })
+    } else {
+      result.shared.exists = false
+    }
+    
+    console.log('📋 调试信息:', JSON.stringify(result, null, 2))
+    res.json(result)
+  } catch (error) {
+    console.error('Failed to get debug info:', error)
+    res.status(500).json({ error: 'Failed to get debug info' })
   }
 })
 
