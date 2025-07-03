@@ -85,6 +85,25 @@ export const useAgentContext = () => {
   return context
 }
 
+// 创建文件选择上下文
+interface FileSelectionContextType {
+  selectedTemplateFile: string
+  selectedSharedFile: string
+  setSelectedTemplateFile: (filename: string) => void
+  setSelectedSharedFile: (filename: string) => void
+}
+
+export const FileSelectionContext = createContext<FileSelectionContextType | null>(null)
+
+// 创建Hook来使用文件选择上下文
+export const useFileSelection = () => {
+  const context = useContext(FileSelectionContext)
+  if (!context) {
+    throw new Error('useFileSelection must be used within FileSelectionProvider')
+  }
+  return context
+}
+
 function App() {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false)
   const [form] = Form.useForm()
@@ -103,6 +122,10 @@ function App() {
   // Agent相关状态
   const [agentId, setAgentId] = useState<string | null>(null)
   const [agentInitialized, setAgentInitialized] = useState(false)
+  
+  // 文件选择状态
+  const [selectedTemplateFile, setSelectedTemplateFile] = useState('')
+  const [selectedSharedFile, setSelectedSharedFile] = useState('')
   
   // 左侧栏折叠状态，默认为折叠
   const [leftSiderCollapsed, setLeftSiderCollapsed] = useState(true)
@@ -319,10 +342,16 @@ function App() {
           agentInitialized,
           setAgentInitialized
         }}>
-          <Layout style={{ 
-            height: '100vh',
-            minHeight: screenWidth <= 1024 ? 'calc(100vh - env(safe-area-inset-top, 0px))' : '100vh' // iPad安全区域适配
+          <FileSelectionContext.Provider value={{ 
+            selectedTemplateFile, 
+            selectedSharedFile, 
+            setSelectedTemplateFile, 
+            setSelectedSharedFile 
           }}>
+            <Layout style={{ 
+              height: '100vh',
+              minHeight: screenWidth <= 1024 ? 'calc(100vh - env(safe-area-inset-top, 0px))' : '100vh' // iPad安全区域适配
+            }}>
           {/* 顶部 Header */}
           <Header style={{ 
             background: '#f8fafc', 
@@ -686,6 +715,7 @@ function App() {
             </Form>
           </Modal>
         </Layout>
+          </FileSelectionContext.Provider>
         </AgentContext.Provider>
       </LLMConfigContext.Provider>
     </ConfigProvider>

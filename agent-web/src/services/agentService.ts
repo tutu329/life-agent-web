@@ -25,9 +25,15 @@ export interface Agents_System_Request {
   lower_agents_config: Agent_As_Tool_Config[]
 }
 
+export interface Query_Agent_Context {
+  template_filename: string
+  shared_filename: string
+}
+
 export interface Query_Agent_Request {
   agent_id: string
   query: string
+  context: Query_Agent_Context
 }
 
 export interface Agent_Status_Request {
@@ -178,14 +184,15 @@ export class AgentService {
   }
 
   // 查询Agent系统
-  async queryAgentSystem(query: string): Promise<StreamResponse> {
+  async queryAgentSystem(query: string, context?: Query_Agent_Context): Promise<StreamResponse> {
     if (!this.agentId) {
       throw new Error('Agent系统未初始化，请先调用initializeAgentSystem()')
     }
 
     const request: Query_Agent_Request = {
       agent_id: this.agentId,
-      query: query
+      query: query,
+      context: context || { template_filename: '', shared_filename: '' }
     }
 
     try {

@@ -4,6 +4,7 @@ import { FolderOutlined, FileOutlined, UploadOutlined, DeleteOutlined } from '@a
 import type { TreeDataNode } from 'antd'
 import type { UploadFile } from 'antd/es/upload/interface'
 import { fileService, type FileInfo } from '../services/fileService'
+import { useFileSelection } from '../App'
 
 const { Title } = Typography
 const { Dragger } = Upload
@@ -37,6 +38,9 @@ const ResourcePanel: React.FC = () => {
   const [uploadingForType, setUploadingForType] = useState<'template' | 'shared' | null>(null)
   const [loading, setLoading] = useState(false)
   const uploadRef = useRef<any>(null)
+  
+  // 使用文件选择上下文
+  const { setSelectedTemplateFile, setSelectedSharedFile } = useFileSelection()
 
   // 从服务器加载文件列表
   useEffect(() => {
@@ -295,11 +299,22 @@ const ResourcePanel: React.FC = () => {
         // 生成文件下载URL
         const downloadUrl = fileService.getFileUrl(selectedFile.type, selectedFile.serverInfo.name)
         console.log('File download URL:', downloadUrl)
-        // 这里可以触发回调或者更新全局状态，供其他组件使用
+        
+        // 更新全局状态
+        if (selectedFile.type === 'template') {
+          setSelectedTemplateFile(selectedFile.serverInfo.name)
+          setSelectedSharedFile('') // 清空共享文件选择
+        } else if (selectedFile.type === 'shared') {
+          setSelectedSharedFile(selectedFile.serverInfo.name)
+          setSelectedTemplateFile('') // 清空模板文件选择
+        }
       }
     } else {
       // 如果点击的是文件夹，清除选择
       setSelectedKeys([])
+      // 清空文件选择
+      setSelectedTemplateFile('')
+      setSelectedSharedFile('')
     }
   }
 

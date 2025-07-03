@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Input, List, Avatar, Typography, Divider, Spin, Button, message, Collapse, Switch, Card } from 'antd'
 import { UserOutlined, RobotOutlined, SendOutlined, ReloadOutlined, CaretRightOutlined, ApiOutlined, LoadingOutlined } from '@ant-design/icons'
-import { useLLMConfig, useAgentContext } from '../App'
+import { useLLMConfig, useAgentContext, useFileSelection } from '../App'
 import { LLMService, ChatMessage } from '../services/llmService'
 import { AgentService, StreamType } from '../services/agentService'
 
@@ -35,6 +35,7 @@ interface Message {
 const InteractionPanel: React.FC = () => {
   const llmConfig = useLLMConfig()
   const { agentId, setAgentId, agentInitialized, setAgentInitialized } = useAgentContext()
+  const { selectedTemplateFile, selectedSharedFile } = useFileSelection()
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
@@ -255,8 +256,16 @@ const InteractionPanel: React.FC = () => {
       }
       setMessages(prev => [...prev, initialAgentMessage])
 
-      // 发送查询请求
-      const streamResponse = await agentService.queryAgentSystem(query)
+      // 发送查询请求，包含文件上下文
+      const context = {
+        template_filename: selectedTemplateFile,
+        shared_filename: selectedSharedFile
+      }
+      console.log('🔍 当前Agent ID:', agentService.getAgentId())
+      console.log('📁 文件上下文:', context)
+      console.log('📤 准备发送查询:', query)
+      
+      const streamResponse = await agentService.queryAgentSystem(query, context)
       console.log('📡 获得流响应:', streamResponse)
 
       // 只有在流尚未初始化时，才启动新的监听器
@@ -306,19 +315,43 @@ const InteractionPanel: React.FC = () => {
 
     } catch (error) {
       console.error('❌ Agent查询错误:', error)
-      message.error(`Agent查询失败: ${error instanceof Error ? error.message : '未知错误'}`)
+      const errorMessage = error instanceof Error ? error.message : '未知错误'
       
-      // 显示错误消息
-      const errorMessage: Message = {
-        id: Date.now() + Math.floor(Math.random() * 10000),
-        content: `❌ Agent查询失败: ${error instanceof Error ? error.message : '未知错误'}`,
-        isUser: false,
-        timestamp: new Date(),
-        hasError: true,
-        canRetry: true,
-        isAgentMode: true
+      // 检查是否是agent_id失效的错误
+      if (errorMessage.includes('KeyError') || errorMessage.includes('agent_id')) {
+        message.error('Agent系统可能已失效，请重新初始化Agent系统')
+        
+        // 重置Agent状态
+        setAgentId(null)
+        setAgentInitialized(false)
+        agentService.resetAgentId()
+        
+        // 显示特殊错误消息
+        const errorMessageObj: Message = {
+          id: Date.now() + Math.floor(Math.random() * 10000),
+          content: `❌ Agent系统已失效，请重新初始化\n\n可能原因：\n- 后台Agent系统重启\n- Agent会话超时\n- 网络连接问题\n\n请切换到LLM模式再切换回Agent模式以重新初始化。`,
+          isUser: false,
+          timestamp: new Date(),
+          hasError: true,
+          canRetry: false,
+          isAgentMode: true
+        }
+        setMessages(prev => [...prev, errorMessageObj])
+      } else {
+        message.error(`Agent查询失败: ${errorMessage}`)
+        
+        // 显示常规错误消息
+        const errorMessageObj: Message = {
+          id: Date.now() + Math.floor(Math.random() * 10000),
+          content: `❌ Agent查询失败: ${errorMessage}`,
+          isUser: false,
+          timestamp: new Date(),
+          hasError: true,
+          canRetry: true,
+          isAgentMode: true
+        }
+        setMessages(prev => [...prev, errorMessageObj])
       }
-      setMessages(prev => [...prev, errorMessage])
     }
   }
 
@@ -835,6 +868,23 @@ const InteractionPanel: React.FC = () => {
             )}
           </div>
         </div>
+        
+        {/* 文件选择信息 */}
+        {useAgentMode && (selectedTemplateFile || selectedSharedFile) && (
+          <div style={{ marginTop: '8px', fontSize: '12px', color: '#666' }}>
+            <Text strong>已选择文件:</Text>
+            {selectedTemplateFile && (
+              <div style={{ marginLeft: '8px' }}>
+                📄 模板文件: {selectedTemplateFile}
+              </div>
+            )}
+            {selectedSharedFile && (
+              <div style={{ marginLeft: '8px' }}>
+                📁 共享文件: {selectedSharedFile}
+              </div>
+            )}
+          </div>
+        )}
       </Card>
 
       {/* 聊天记录区域 */}
