@@ -1064,20 +1064,17 @@ def select_chapter(chapter="2.1"):
             
         return error_msg
 
-def insert_text(text, font_name="SimSun", font_color="black", font_size=12, line_spacing=1.5, first_line_indent=700):
-    """插入文本到文档当前光标位置，支持字体和段落格式设置
+def insert_text(text, font_name="SimSun", font_color="black", font_size=12):
+    """插入文本到文档当前光标位置，支持字体格式设置
     
     参数：
     text: 要插入的文本
     font_name: 字体名称，默认宋体
     font_color: 字体颜色，默认黑色
     font_size: 字体大小，默认12pt
-    line_spacing: 行间距，如1.5表示1.5倍行距
-    first_line_indent: 首行缩进，单位为1/100毫米，如700表示2个中文字符（约7mm）
     """
     write_log(f"📝📝📝 insert_text() 函数被调用！文本: {text[:50]}{'...' if len(text) > 50 else ''}")
     write_log(f"字体参数: font_name={font_name}, font_color={font_color}, font_size={font_size}")
-    write_log(f"段落参数: line_spacing={line_spacing}, first_line_indent={first_line_indent}")
     write_log("=== insert_text() 函数开始执行 ===")
     
     try:
@@ -1148,9 +1145,6 @@ def insert_text(text, font_name="SimSun", font_color="black", font_size=12, line
         cursor = doc_text.createTextCursor()
         write_log("成功创建文本光标")
         
-        # 添加时间戳
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        # final_text = f"[{timestamp}] {text}"
         # 将 \n 转换为 \r 以实现真正的段落换行而不是软换行
         final_text = text.replace('\n', '\r')
         
@@ -1189,79 +1183,14 @@ def insert_text(text, font_name="SimSun", font_color="black", font_size=12, line
         text_range.setPropertyValue("CharHeightComplex", float(font_size))
         write_log(f"已设置字体大小: {font_size}pt")
         
-        # === 设置段落格式 ===
-        # 设置行间距
-        if line_spacing is not None:
-            write_log(f"设置行间距: {line_spacing}")
-            try:
-                import uno
-                # 创建LineSpacing结构体
-                line_spacing_struct = uno.createUnoStruct("com.sun.star.style.LineSpacing")
-                
-                if isinstance(line_spacing, (int, float)) and line_spacing > 0:
-                    if line_spacing == 1.0:
-                        # 单倍行距 - 使用比例模式
-                        line_spacing_struct.Mode = 0  # PROP
-                        line_spacing_struct.Height = 100
-                    elif line_spacing == 1.5:
-                        # 1.5倍行距 - 使用固定模式以获得更精确控制
-                        line_spacing_struct.Mode = 3  # FIXED
-                        line_spacing_struct.Height = int(font_size * 1.5 * 35.28)  # 转换为1/100mm
-                    elif line_spacing == 2.0:
-                        # 双倍行距 - 使用固定模式
-                        line_spacing_struct.Mode = 3  # FIXED
-                        line_spacing_struct.Height = int(font_size * 2.0 * 35.28)  # 转换为1/100mm
-                    else:
-                        # 自定义倍数行距 - 1.5以上使用固定模式，其他使用比例模式
-                        if line_spacing >= 1.5:
-                            line_spacing_struct.Mode = 3  # FIXED
-                            line_spacing_struct.Height = int(font_size * line_spacing * 35.28)  # 转换为1/100mm
-                        else:
-                            line_spacing_struct.Mode = 0  # PROP
-                            line_spacing_struct.Height = int(line_spacing * 100)
-                    
-                    text_range.setPropertyValue("ParaLineSpacing", line_spacing_struct)
-                    write_log(f"已设置行间距: {line_spacing}倍")
-                else:
-                    write_log(f"WARNING: 无效的行间距值: {line_spacing}")
-                    
-            except Exception as line_spacing_error:
-                write_log(f"设置行间距时出错: {str(line_spacing_error)}")
-        
-        # 设置首行缩进
-        if first_line_indent is not None:
-            write_log(f"设置首行缩进: {first_line_indent}")
-            try:
-                if isinstance(first_line_indent, (int, float)):
-                    # 如果传入的是毫米值，转换为1/100毫米
-                    if first_line_indent > 0 and first_line_indent < 100:
-                        # 假设传入的是毫米，转换为1/100毫米
-                        indent_value = int(first_line_indent * 100)
-                    else:
-                        # 假设传入的已经是1/100毫米单位
-                        indent_value = int(first_line_indent)
-                    
-                    text_range.setPropertyValue("ParaFirstLineIndent", indent_value)
-                    write_log(f"已设置首行缩进: {indent_value/100:.1f}mm ({indent_value} 1/100mm)")
-                else:
-                    write_log(f"WARNING: 无效的首行缩进值: {first_line_indent}")
-                    
-            except Exception as indent_error:
-                write_log(f"设置首行缩进时出错: {str(indent_error)}")
-        
-        write_log("文本和段落格式设置完成")
+        write_log("文本格式设置完成")
         
         write_log("=== insert_text() 函数执行完成 ===")
         
         # 构建返回信息
-        format_info = []
-        format_info.append(f"字体: {font_name}, {font_color}, {font_size}pt")
-        if line_spacing is not None:
-            format_info.append(f"行间距: {line_spacing}倍")
-        if first_line_indent is not None:
-            format_info.append(f"首行缩进: {first_line_indent}")
+        format_info = f"字体: {font_name}, {font_color}, {font_size}pt"
         
-        return f"SUCCESS: 成功插入并格式化文本 ({len(final_text)} 字符, {', '.join(format_info)})"
+        return f"SUCCESS: 成功插入并格式化文本 ({len(final_text)} 字符, {format_info})"
         
     except Exception as e:
         error_msg = f"ERROR in insert_text(): {str(e)}"
@@ -1277,6 +1206,220 @@ def insert_text(text, font_name="SimSun", font_color="black", font_size=12, line
                 cursor = doc_text.createTextCursor()
                 cursor.gotoEnd(False)
                 error_display = f"\n[ERROR] insert_text() 执行失败: {str(e)}\n"
+                doc_text.insertString(cursor, error_display, False)
+        except:
+            pass
+            
+        return error_msg
+
+def set_paragraph(line_spacing=1.5, first_line_indent=700, left_margin=0, right_margin=0, space_before=0, space_after=0):
+    """设置当前段落或后续段落的格式
+    
+    参数：
+    line_spacing: 行间距，如1.5表示1.5倍行距
+    first_line_indent: 首行缩进，单位为1/100毫米，如700表示2个中文字符（约7mm）
+    left_margin: 左边距，单位为1/100毫米
+    right_margin: 右边距，单位为1/100毫米
+    space_before: 段前间距，单位为1/100毫米
+    space_after: 段后间距，单位为1/100毫米
+    """
+    # 参数验证和默认值处理
+    if line_spacing is None or not isinstance(line_spacing, (int, float)):
+        line_spacing = 1.5
+    if first_line_indent is None or not isinstance(first_line_indent, (int, float)):
+        first_line_indent = 700
+    if left_margin is None or not isinstance(left_margin, (int, float)):
+        left_margin = 0
+    if right_margin is None or not isinstance(right_margin, (int, float)):
+        right_margin = 0
+    if space_before is None or not isinstance(space_before, (int, float)):
+        space_before = 0
+    if space_after is None or not isinstance(space_after, (int, float)):
+        space_after = 0
+    
+    write_log(f"📐📐📐 set_paragraph() 函数被调用！")
+    write_log(f"段落参数: line_spacing={line_spacing}, first_line_indent={first_line_indent}")
+    write_log(f"边距参数: left_margin={left_margin}, right_margin={right_margin}")
+    write_log(f"间距参数: space_before={space_before}, space_after={space_after}")
+    write_log("=== set_paragraph() 函数开始执行 ===")
+    
+    try:
+        write_log("尝试获取XSCRIPTCONTEXT...")
+        
+        # 获取文档上下文
+        desktop = XSCRIPTCONTEXT.getDesktop()
+        write_log("成功获取desktop")
+        
+        model = desktop.getCurrentComponent()
+        write_log(f"获取当前文档组件: {model}")
+
+        if not model:
+            write_log("ERROR: 没有打开的文档")
+            return "ERROR: 没有打开的文档"
+
+        # 获取文档的文本内容和光标
+        doc_text = model.getText()
+        cursor = doc_text.createTextCursor()
+        write_log("成功创建文本光标")
+        
+        # 移动光标到文档末尾（也可以根据需要移动到当前位置）
+        cursor.gotoEnd(False)
+        
+        # 创建一个段落范围用于格式化
+        # 如果当前位置有内容，则格式化当前段落；否则格式化后续插入的内容
+        paragraph_cursor = cursor.getStart()
+        text_range = doc_text.createTextCursorByRange(paragraph_cursor)
+        
+        write_log("开始设置段落格式...")
+        
+        # === 设置行间距 ===
+        if line_spacing > 0:
+            write_log(f"设置行间距: {line_spacing}")
+            try:
+                import uno
+                # 创建LineSpacing结构体
+                line_spacing_struct = uno.createUnoStruct("com.sun.star.style.LineSpacing")
+                
+                # 根据官方文档，使用正确的Mode值
+                # Mode 0 = PROP (比例模式)，Mode 3 = FIXED (固定模式)
+                if line_spacing == 1.0:
+                    # 单倍行距 - 使用比例模式
+                    line_spacing_struct.Mode = 0  # PROP
+                    line_spacing_struct.Height = 100  # 100%
+                elif line_spacing <= 3.0:
+                    # 对于常见的倍数行距，使用比例模式更稳定
+                    line_spacing_struct.Mode = 0  # PROP
+                    line_spacing_struct.Height = int(line_spacing * 100)  # 转换为百分比
+                else:
+                    # 对于很大的行距值，使用固定模式
+                    line_spacing_struct.Mode = 3  # FIXED
+                    line_spacing_struct.Height = int(line_spacing * 12 * 35.28)  # 基于12pt字体转换为1/100mm
+                
+                text_range.setPropertyValue("ParaLineSpacing", line_spacing_struct)
+                write_log(f"已设置行间距: {line_spacing}倍 (Mode={line_spacing_struct.Mode}, Height={line_spacing_struct.Height})")
+                
+            except Exception as line_spacing_error:
+                write_log(f"设置行间距时出错: {str(line_spacing_error)}")
+        
+        # === 设置首行缩进 ===
+        if first_line_indent != 0:
+            write_log(f"设置首行缩进: {first_line_indent}")
+            try:
+                # 如果传入的是毫米值，转换为1/100毫米
+                if first_line_indent > 0 and first_line_indent < 100:
+                    # 假设传入的是毫米，转换为1/100毫米
+                    indent_value = int(first_line_indent * 100)
+                else:
+                    # 假设传入的已经是1/100毫米单位
+                    indent_value = int(first_line_indent)
+                
+                text_range.setPropertyValue("ParaFirstLineIndent", indent_value)
+                write_log(f"已设置首行缩进: {indent_value/100:.1f}mm ({indent_value} 1/100mm)")
+                
+            except Exception as indent_error:
+                write_log(f"设置首行缩进时出错: {str(indent_error)}")
+        
+        # === 设置左边距 ===
+        if left_margin != 0:
+            write_log(f"设置左边距: {left_margin}")
+            try:
+                if left_margin > 0 and left_margin < 100:
+                    # 假设传入的是毫米，转换为1/100毫米
+                    margin_value = int(left_margin * 100)
+                else:
+                    # 假设传入的已经是1/100毫米单位
+                    margin_value = int(left_margin)
+                
+                text_range.setPropertyValue("ParaLeftMargin", margin_value)
+                write_log(f"已设置左边距: {margin_value/100:.1f}mm ({margin_value} 1/100mm)")
+                
+            except Exception as margin_error:
+                write_log(f"设置左边距时出错: {str(margin_error)}")
+        
+        # === 设置右边距 ===
+        if right_margin != 0:
+            write_log(f"设置右边距: {right_margin}")
+            try:
+                if right_margin > 0 and right_margin < 100:
+                    # 假设传入的是毫米，转换为1/100毫米
+                    margin_value = int(right_margin * 100)
+                else:
+                    # 假设传入的已经是1/100毫米单位
+                    margin_value = int(right_margin)
+                
+                text_range.setPropertyValue("ParaRightMargin", margin_value)
+                write_log(f"已设置右边距: {margin_value/100:.1f}mm ({margin_value} 1/100mm)")
+                
+            except Exception as margin_error:
+                write_log(f"设置右边距时出错: {str(margin_error)}")
+        
+        # === 设置段前间距 ===
+        if space_before != 0:
+            write_log(f"设置段前间距: {space_before}")
+            try:
+                if space_before > 0 and space_before < 100:
+                    # 假设传入的是毫米，转换为1/100毫米
+                    space_value = int(space_before * 100)
+                else:
+                    # 假设传入的已经是1/100毫米单位
+                    space_value = int(space_before)
+                
+                text_range.setPropertyValue("ParaTopMargin", space_value)
+                write_log(f"已设置段前间距: {space_value/100:.1f}mm ({space_value} 1/100mm)")
+                
+            except Exception as space_error:
+                write_log(f"设置段前间距时出错: {str(space_error)}")
+        
+        # === 设置段后间距 ===
+        if space_after != 0:
+            write_log(f"设置段后间距: {space_after}")
+            try:
+                if space_after > 0 and space_after < 100:
+                    # 假设传入的是毫米，转换为1/100毫米
+                    space_value = int(space_after * 100)
+                else:
+                    # 假设传入的已经是1/100毫米单位
+                    space_value = int(space_after)
+                
+                text_range.setPropertyValue("ParaBottomMargin", space_value)
+                write_log(f"已设置段后间距: {space_value/100:.1f}mm ({space_value} 1/100mm)")
+                
+            except Exception as space_error:
+                write_log(f"设置段后间距时出错: {str(space_error)}")
+        
+        write_log("段落格式设置完成")
+        
+        write_log("=== set_paragraph() 函数执行完成 ===")
+        
+        # 构建返回信息
+        format_info = []
+        format_info.append(f"行间距: {line_spacing}倍")
+        format_info.append(f"首行缩进: {first_line_indent}")
+        if left_margin != 0:
+            format_info.append(f"左边距: {left_margin}")
+        if right_margin != 0:
+            format_info.append(f"右边距: {right_margin}")
+        if space_before != 0:
+            format_info.append(f"段前间距: {space_before}")
+        if space_after != 0:
+            format_info.append(f"段后间距: {space_after}")
+        
+        return f"SUCCESS: 成功设置段落格式 ({', '.join(format_info)})"
+        
+    except Exception as e:
+        error_msg = f"ERROR in set_paragraph(): {str(e)}"
+        error_traceback = traceback.format_exc()
+        write_log(f"{error_msg}\n{error_traceback}")
+        
+        # 尝试在文档中也显示错误信息
+        try:
+            desktop = XSCRIPTCONTEXT.getDesktop()
+            model = desktop.getCurrentComponent()
+            if model:
+                doc_text = model.getText()
+                cursor = doc_text.createTextCursor()
+                cursor.gotoEnd(False)
+                error_display = f"\n[ERROR] set_paragraph() 执行失败: {str(e)}\n"
                 doc_text.insertString(cursor, error_display, False)
         except:
             pass
@@ -1419,4 +1562,4 @@ def insert_title(title, outline_level=1, font_name="SimSun", font_size=14, font_
 
 # LibreOffice/Collabora CODE 要求导出函数
 # 这是必须的，否则CallPythonScript无法找到函数
-g_exportedScripts = (hello, get_document_content, test_uno_connection, simple_test, debug_params, search_and_format_text, search_and_replace_with_format, select_chapter, insert_text, insert_title,) 
+g_exportedScripts = (hello, get_document_content, test_uno_connection, simple_test, debug_params, search_and_format_text, search_and_replace_with_format, select_chapter, insert_text, set_paragraph, insert_title,) 
