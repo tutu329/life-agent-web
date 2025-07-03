@@ -224,39 +224,71 @@ const EditorPanel: React.FC = () => {
             return;
           }
 
-          const messageId = data.MessageId || '未知指令';
-          setReceivedMessages(prev => [...prev.slice(-9), `原始指令: ${messageId}`]);
-          console.log('🔧 执行python脚本:', data);
-          iframeRef.current.contentWindow?.postMessage(data, collaboraUrl);
+          // const messageId = data.MessageId || '未知指令';
+          // setReceivedMessages(prev => [...prev.slice(-9), `原始指令: ${messageId}`]);
+          // console.log('🔧 执行python脚本:', data);
+          // iframeRef.current.contentWindow?.postMessage(data, collaboraUrl);
 
 
+          // 将后台参数转换为LibreOffice UNO API格式
+          const convertedParams: any = {}
+          if (data.params) {
+            Object.keys(data.params).forEach(key => {
+              const value = data.params[key]
+              if (typeof value === 'string') {
+                convertedParams[key] = {'type': 'string', 'value': value}
+              } else if (typeof value === 'number') {
+                convertedParams[key] = {'type': Number.isInteger(value) ? 'long' : 'double', 'value': value}
+              } else if (typeof value === 'boolean') {
+                convertedParams[key] = {'type': 'boolean', 'value': value}
+              } else {
+                convertedParams[key] = {'type': 'string', 'value': String(value)}
+              }
+            })
+          }
 
           const officialFormat = {
             'MessageId': 'CallPythonScript',
             'SendTime': Date.now(),
             'ScriptFile': 'office_api.py',
-            'Function': 'insert_text',
-            'Values': {
-              'text': {'type': 'string', 'value': data.text || '默认测试文本'},
-              'font_name': {'type': 'string', 'value': data.font_name || 'SimSun'},
-              'font_color': {'type': 'string', 'value': data.font_color || 'black'},
-              'font_size': {'type': 'long', 'value': data.font_size || 12}
-            }
+            'Function': data.cmd,
+            'Values': convertedParams
           }
-          setReceivedMessages(prev => [...prev.slice(-9), '🎯 测试CallPythonScript'])
+          // setReceivedMessages(prev => [...prev.slice(-9), '🎯 测试CallPythonScript'])
           
           try {
             iframeRef.current.contentWindow?.postMessage(JSON.stringify({'MessageId': 'Host_PostmessageReady'}), '*')
             iframeRef.current.contentWindow?.postMessage(JSON.stringify(officialFormat), collaboraUrl)
             
-            messageApi.info('✅ 已发送CallPythonScript调用，请观察控制台和文档响应！')
+            // messageApi.info('✅ 已发送CallPythonScript调用，请观察控制台和文档响应！')
           } catch (error) {
             console.error('❌ 发送CallPythonScript失败:', error)
             messageApi.error('发送Python脚本调用失败')
           }
 
-
-
+          // const officialFormat = {
+          //   'MessageId': 'CallPythonScript',
+          //   'SendTime': Date.now(),
+          //   'ScriptFile': 'office_api.py',
+          //   'Function': 'insert_text',
+          //   'Values': {
+          //     'text': {'type': 'string', 'value': data.text || '默认测试文本'},
+          //     'font_name': {'type': 'string', 'value': data.font_name || 'SimSun'},
+          //     'font_color': {'type': 'string', 'value': data.font_color || 'black'},
+          //     'font_size': {'type': 'long', 'value': data.font_size || 12}
+          //   }
+          // }
+          // setReceivedMessages(prev => [...prev.slice(-9), '🎯 测试CallPythonScript'])
+          
+          // try {
+          //   iframeRef.current.contentWindow?.postMessage(JSON.stringify({'MessageId': 'Host_PostmessageReady'}), '*')
+          //   iframeRef.current.contentWindow?.postMessage(JSON.stringify(officialFormat), collaboraUrl)
+            
+          //   messageApi.info('✅ 已发送CallPythonScript调用，请观察控制台和文档响应！')
+          // } catch (error) {
+          //   console.error('❌ 发送CallPythonScript失败:', error)
+          //   messageApi.error('发送Python脚本调用失败')
+          // }
 
         }
         break;      
@@ -430,29 +462,29 @@ const EditorPanel: React.FC = () => {
         
         // 专门处理Python脚本相关的消息
         if (data.MessageId === 'CallPythonScript-Result') {
-          console.log('🐍 ------CallPythonScript响应:', data)
+          // console.log('🐍 ------CallPythonScript响应:', data)
           
-          // 检查是否是获取文档内容的响应
-          if (data.Values && typeof data.Values === 'string' && data.Values.includes('已获取文档内容')) {
-            console.log('📄✅ 获取文档内容成功:', data.Values)
-            messageApi.success('文档内容获取成功！请查看文档末尾的确认信息')
-            setReceivedMessages(prev => [...prev.slice(-9), `📄 ${data.Values}`])
-          } else if (data.Values && typeof data.Values === 'string' && data.Values.includes('hello() 执行成功')) {
-            console.log('🚀✅ hello函数执行成功:', data.Values)
-            messageApi.success('Python API调用成功！')
-            setReceivedMessages(prev => [...prev.slice(-9), `🚀 ${data.Values}`])
-          } else {
-            // 通用的Python脚本响应处理
-            const responseText = typeof data.Values === 'string' ? data.Values : JSON.stringify(data.Values)
-            setReceivedMessages(prev => [...prev.slice(-9), `Python响应: ${responseText}`])
+          // // 检查是否是获取文档内容的响应
+          // if (data.Values && typeof data.Values === 'string' && data.Values.includes('已获取文档内容')) {
+          //   console.log('📄✅ 获取文档内容成功:', data.Values)
+          //   messageApi.success('文档内容获取成功！请查看文档末尾的确认信息')
+          //   setReceivedMessages(prev => [...prev.slice(-9), `📄 ${data.Values}`])
+          // } else if (data.Values && typeof data.Values === 'string' && data.Values.includes('hello() 执行成功')) {
+          //   console.log('🚀✅ hello函数执行成功:', data.Values)
+          //   messageApi.success('Python API调用成功！')
+          //   setReceivedMessages(prev => [...prev.slice(-9), `🚀 ${data.Values}`])
+          // } else {
+          //   // 通用的Python脚本响应处理
+          //   const responseText = typeof data.Values === 'string' ? data.Values : JSON.stringify(data.Values)
+          //   setReceivedMessages(prev => [...prev.slice(-9), `Python响应: ${responseText}`])
             
-            // 如果包含ERROR，显示错误消息
-            if (responseText.includes('ERROR')) {
-              messageApi.error(`Python API执行出错: ${responseText}`)
-            } else if (responseText.includes('SUCCESS')) {
-              messageApi.info(`Python API执行成功: ${responseText}`)
-            }
-          }
+          //   // 如果包含ERROR，显示错误消息
+          //   if (responseText.includes('ERROR')) {
+          //     messageApi.error(`Python API执行出错: ${responseText}`)
+          //   } else if (responseText.includes('SUCCESS')) {
+          //     messageApi.info(`Python API执行成功: ${responseText}`)
+          //   }
+          // }
         }
         
         if (data.MessageId === 'Send_UNO_Command_Resp') {

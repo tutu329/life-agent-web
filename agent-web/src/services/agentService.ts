@@ -104,7 +104,7 @@ export class AgentService {
     const request: Agents_System_Request = {
       remote_tools: [],
       upper_agent_config: {
-        tool_names: ['Office_Tool'],
+        tool_names: ['Folder_Tool'],
         exp_json_path: 'my_2_levels_mas_exp.json',
         base_url: 'https://api.deepseek.com/v1',
         api_key: 'sk-c1d34a4f21e3413487bb4b2806f6c4b8',
@@ -113,12 +113,12 @@ export class AgentService {
       },
       lower_agents_config: [
         {
-          tool_names: ['Office_Tool'],
+          tool_names: ['Write_Chapter_Tool'],
           // tool_names: ['Human_Console_Tool', 'Folder_Tool'],
           exp_json_path: '',
-          as_tool_name: 'Office_Agent_As_Tool',
+          as_tool_name: 'Write_Chapter_Agent_As_Tool',
           // as_tool_name: 'Folder_Agent_As_Tool',
-          as_tool_description: '本工具用于读写office文档',
+          as_tool_description: '本工具用于在office文档中编制一个章节的内容',
           base_url: 'https://api.deepseek.com/v1',
           api_key: 'sk-c1d34a4f21e3413487bb4b2806f6c4b8',
           llm_model_id: 'deepseek-chat',
@@ -126,6 +126,31 @@ export class AgentService {
         }
       ]
     }
+    // const request: Agents_System_Request = {
+    //   remote_tools: [],
+    //   upper_agent_config: {
+    //     tool_names: ['Office_Tool'],
+    //     exp_json_path: 'my_2_levels_mas_exp.json',
+    //     base_url: 'https://api.deepseek.com/v1',
+    //     api_key: 'sk-c1d34a4f21e3413487bb4b2806f6c4b8',
+    //     llm_model_id: 'deepseek-chat',
+    //     temperature: 0.65
+    //   },
+    //   lower_agents_config: [
+    //     {
+    //       tool_names: ['Office_Tool'],
+    //       // tool_names: ['Human_Console_Tool', 'Folder_Tool'],
+    //       exp_json_path: '',
+    //       as_tool_name: 'Office_Agent_As_Tool',
+    //       // as_tool_name: 'Folder_Agent_As_Tool',
+    //       as_tool_description: '本工具用于读写office文档',
+    //       base_url: 'https://api.deepseek.com/v1',
+    //       api_key: 'sk-c1d34a4f21e3413487bb4b2806f6c4b8',
+    //       llm_model_id: 'deepseek-chat',
+    //       temperature: 0.70
+    //     }
+    //   ]
+    // }
 
     try {
       const response = await fetch(`${this.baseUrl}/api/start_2_level_agents_system`, {
