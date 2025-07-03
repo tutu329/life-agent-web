@@ -1064,10 +1064,20 @@ def select_chapter(chapter="2.1"):
             
         return error_msg
 
-def insert_text(text, font_name="SimSun", font_color="black", font_size=12):
-    """插入文本到文档当前光标位置，支持字体设置"""
+def insert_text(text, font_name="SimSun", font_color="black", font_size=12, line_spacing=1.5, first_line_indent=700):
+    """插入文本到文档当前光标位置，支持字体和段落格式设置
+    
+    参数：
+    text: 要插入的文本
+    font_name: 字体名称，默认宋体
+    font_color: 字体颜色，默认黑色
+    font_size: 字体大小，默认12pt
+    line_spacing: 行间距，如1.5表示1.5倍行距
+    first_line_indent: 首行缩进，单位为1/100毫米，如700表示2个中文字符（约7mm）
+    """
     write_log(f"📝📝📝 insert_text() 函数被调用！文本: {text[:50]}{'...' if len(text) > 50 else ''}")
     write_log(f"字体参数: font_name={font_name}, font_color={font_color}, font_size={font_size}")
+    write_log(f"段落参数: line_spacing={line_spacing}, first_line_indent={first_line_indent}")
     write_log("=== insert_text() 函数开始执行 ===")
     
     try:
@@ -1141,7 +1151,8 @@ def insert_text(text, font_name="SimSun", font_color="black", font_size=12):
         # 添加时间戳
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         # final_text = f"[{timestamp}] {text}"
-        final_text = f"{text}"
+        # 将 \n 转换为 \r 以实现真正的段落换行而不是软换行
+        final_text = text.replace('\n', '\r')
         
         write_log(f"准备插入的最终文本: {final_text[:100]}{'...' if len(final_text) > 100 else ''}")
         
@@ -1161,6 +1172,7 @@ def insert_text(text, font_name="SimSun", font_color="black", font_size=12):
         
         write_log("开始设置文本格式...")
         
+        # === 设置字符格式 ===
         # 设置字体名称
         text_range.setPropertyValue("CharFontName", font_name)
         text_range.setPropertyValue("CharFontNameAsian", font_name)
@@ -1177,10 +1189,79 @@ def insert_text(text, font_name="SimSun", font_color="black", font_size=12):
         text_range.setPropertyValue("CharHeightComplex", float(font_size))
         write_log(f"已设置字体大小: {font_size}pt")
         
-        write_log("文本格式设置完成")
+        # === 设置段落格式 ===
+        # 设置行间距
+        if line_spacing is not None:
+            write_log(f"设置行间距: {line_spacing}")
+            try:
+                import uno
+                # 创建LineSpacing结构体
+                line_spacing_struct = uno.createUnoStruct("com.sun.star.style.LineSpacing")
+                
+                if isinstance(line_spacing, (int, float)) and line_spacing > 0:
+                    if line_spacing == 1.0:
+                        # 单倍行距 - 使用比例模式
+                        line_spacing_struct.Mode = 0  # PROP
+                        line_spacing_struct.Height = 100
+                    elif line_spacing == 1.5:
+                        # 1.5倍行距 - 使用固定模式以获得更精确控制
+                        line_spacing_struct.Mode = 3  # FIXED
+                        line_spacing_struct.Height = int(font_size * 1.5 * 35.28)  # 转换为1/100mm
+                    elif line_spacing == 2.0:
+                        # 双倍行距 - 使用固定模式
+                        line_spacing_struct.Mode = 3  # FIXED
+                        line_spacing_struct.Height = int(font_size * 2.0 * 35.28)  # 转换为1/100mm
+                    else:
+                        # 自定义倍数行距 - 1.5以上使用固定模式，其他使用比例模式
+                        if line_spacing >= 1.5:
+                            line_spacing_struct.Mode = 3  # FIXED
+                            line_spacing_struct.Height = int(font_size * line_spacing * 35.28)  # 转换为1/100mm
+                        else:
+                            line_spacing_struct.Mode = 0  # PROP
+                            line_spacing_struct.Height = int(line_spacing * 100)
+                    
+                    text_range.setPropertyValue("ParaLineSpacing", line_spacing_struct)
+                    write_log(f"已设置行间距: {line_spacing}倍")
+                else:
+                    write_log(f"WARNING: 无效的行间距值: {line_spacing}")
+                    
+            except Exception as line_spacing_error:
+                write_log(f"设置行间距时出错: {str(line_spacing_error)}")
+        
+        # 设置首行缩进
+        if first_line_indent is not None:
+            write_log(f"设置首行缩进: {first_line_indent}")
+            try:
+                if isinstance(first_line_indent, (int, float)):
+                    # 如果传入的是毫米值，转换为1/100毫米
+                    if first_line_indent > 0 and first_line_indent < 100:
+                        # 假设传入的是毫米，转换为1/100毫米
+                        indent_value = int(first_line_indent * 100)
+                    else:
+                        # 假设传入的已经是1/100毫米单位
+                        indent_value = int(first_line_indent)
+                    
+                    text_range.setPropertyValue("ParaFirstLineIndent", indent_value)
+                    write_log(f"已设置首行缩进: {indent_value/100:.1f}mm ({indent_value} 1/100mm)")
+                else:
+                    write_log(f"WARNING: 无效的首行缩进值: {first_line_indent}")
+                    
+            except Exception as indent_error:
+                write_log(f"设置首行缩进时出错: {str(indent_error)}")
+        
+        write_log("文本和段落格式设置完成")
         
         write_log("=== insert_text() 函数执行完成 ===")
-        return f"SUCCESS: 成功插入并格式化文本 ({len(final_text)} 字符, {font_name}, {font_color}, {font_size}pt)"
+        
+        # 构建返回信息
+        format_info = []
+        format_info.append(f"字体: {font_name}, {font_color}, {font_size}pt")
+        if line_spacing is not None:
+            format_info.append(f"行间距: {line_spacing}倍")
+        if first_line_indent is not None:
+            format_info.append(f"首行缩进: {first_line_indent}")
+        
+        return f"SUCCESS: 成功插入并格式化文本 ({len(final_text)} 字符, {', '.join(format_info)})"
         
     except Exception as e:
         error_msg = f"ERROR in insert_text(): {str(e)}"
@@ -1202,6 +1283,140 @@ def insert_text(text, font_name="SimSun", font_color="black", font_size=12):
             
         return error_msg
 
+def insert_title(title, outline_level=1, font_name="SimSun", font_size=14, font_color="black", font_bold=True):
+    """
+    插入标题文本，设置大纲级别和格式
+    
+    参数：
+    - title: 标题文本
+    - outline_level: 大纲级别 (1-10，其中1是最高级别)
+    - font_name: 字体名称，默认"SimSun"
+    - font_size: 字体大小，默认14
+    - font_color: 字体颜色，默认"black"
+    - font_bold: 是否粗体，默认True
+    
+    返回值：
+    - dict: 包含操作结果的字典
+    """
+    try:
+        # 获取时间戳
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # 处理文本，将 \n 转换为 \r 以实现真正的段落换行，并在标题后添加段落分隔符
+        final_text = title.replace('\n', '\r') + '\r'  # 标题后自动添加段落分隔符
+        
+        write_log(f"插入标题: {final_text.rstrip()}")  # 日志中不显示换行符
+        write_log(f"大纲级别: {outline_level}")
+        write_log(f"字体: {font_name}, 大小: {font_size}, 颜色: {font_color}, 粗体: {font_bold}")
+        
+        # 获取文档上下文
+        desktop = XSCRIPTCONTEXT.getDesktop()
+        model = desktop.getCurrentComponent()
+        doc_text = model.getText()
+        cursor = doc_text.createTextCursor()
+        
+        # 移动到文档末尾
+        cursor.gotoEnd(False)
+        
+        # 插入标题文本（包含段落分隔符）
+        doc_text.insertString(cursor, final_text, False)
+        
+        # 移动游标到刚插入文本的开始位置（不包括段落分隔符）
+        title_length = len(final_text.rstrip())  # 不包括末尾的段落分隔符
+        cursor.goLeft(len(final_text), False)  # 先移动到标题开始位置
+        cursor.goRight(title_length, True)  # 选中标题文本（不包括段落分隔符）
+        
+        # 设置字符格式
+        try:
+            write_log(f"设置字体名称: {font_name}")
+            cursor.setPropertyValue("CharFontName", font_name)
+            
+            write_log(f"设置字体大小: {font_size}")
+            cursor.setPropertyValue("CharHeight", float(font_size))
+            
+            # 处理字体颜色
+            if font_color.lower() == "black":
+                color_value = 0x000000
+            elif font_color.lower() == "red":
+                color_value = 0xFF0000
+            elif font_color.lower() == "blue":
+                color_value = 0x0000FF
+            elif font_color.lower() == "green":
+                color_value = 0x008000
+            elif isinstance(font_color, int):
+                color_value = font_color
+            else:
+                color_value = 0x000000  # 默认黑色
+            
+            write_log(f"设置字体颜色: {color_value}")
+            cursor.setPropertyValue("CharColor", color_value)
+            
+            # 设置字体粗细
+            if font_bold:
+                write_log("设置粗体")
+                cursor.setPropertyValue("CharWeight", com.sun.star.awt.FontWeight.BOLD)
+            else:
+                cursor.setPropertyValue("CharWeight", com.sun.star.awt.FontWeight.NORMAL)
+                
+        except Exception as e:
+            write_log(f"设置字符格式时出错: {str(e)}")
+        
+        # 设置段落格式（固定值）
+        try:
+            write_log("设置段落格式")
+            
+            # 设置行间距为1.5倍 - 使用固定模式以获得更精确控制
+            line_spacing_struct = uno.createUnoStruct("com.sun.star.style.LineSpacing")
+            line_spacing_struct.Mode = 3  # FIXED模式
+            line_spacing_struct.Height = int(font_size * 1.5 * 35.28)  # 转换为1/100mm，35.28是pt到1/100mm的转换系数
+            cursor.setPropertyValue("ParaLineSpacing", line_spacing_struct)
+            write_log(f"设置行间距: 1.5倍 (固定模式, {line_spacing_struct.Height} 1/100mm)")
+            
+            # 设置首行缩进为0
+            cursor.setPropertyValue("ParaFirstLineIndent", 0)
+            write_log("设置首行缩进: 0")
+            
+        except Exception as e:
+            write_log(f"设置段落格式时出错: {str(e)}")
+        
+        # 设置大纲级别
+        try:
+            # 验证大纲级别范围
+            if outline_level < 1:
+                outline_level = 1
+            elif outline_level > 10:
+                outline_level = 10
+            
+            write_log(f"设置大纲级别: {outline_level}")
+            cursor.setPropertyValue("OutlineLevel", outline_level)
+            write_log(f"成功设置大纲级别为: {outline_level}")
+            
+        except Exception as e:
+            write_log(f"设置大纲级别时出错: {str(e)}")
+        
+        # 移动游标到文档末尾，格式设置完成
+        cursor.gotoEnd(False)
+        write_log("标题格式设置完成，已自动添加段落分隔符")
+        
+        write_log(f"标题插入完成: {final_text.rstrip()}")
+        
+        return {
+            "status": "success",
+            "message": f"标题插入成功: {final_text}",
+            "title": title,
+            "outline_level": outline_level,
+            "timestamp": timestamp
+        }
+        
+    except Exception as e:
+        error_msg = f"插入标题时出错: {str(e)}"
+        write_log(error_msg)
+        return {
+            "status": "error",
+            "message": error_msg,
+            "timestamp": timestamp
+        }
+
 # LibreOffice/Collabora CODE 要求导出函数
 # 这是必须的，否则CallPythonScript无法找到函数
-g_exportedScripts = (hello, get_document_content, test_uno_connection, simple_test, debug_params, search_and_format_text, search_and_replace_with_format, select_chapter, insert_text,) 
+g_exportedScripts = (hello, get_document_content, test_uno_connection, simple_test, debug_params, search_and_format_text, search_and_replace_with_format, select_chapter, insert_text, insert_title,) 
