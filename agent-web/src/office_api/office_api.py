@@ -1064,6 +1064,144 @@ def select_chapter(chapter="2.1"):
             
         return error_msg
 
+def insert_text(text, font_name="SimSun", font_color="black", font_size=12):
+    """插入文本到文档当前光标位置，支持字体设置"""
+    write_log(f"📝📝📝 insert_text() 函数被调用！文本: {text[:50]}{'...' if len(text) > 50 else ''}")
+    write_log(f"字体参数: font_name={font_name}, font_color={font_color}, font_size={font_size}")
+    write_log("=== insert_text() 函数开始执行 ===")
+    
+    try:
+        # 参数验证和默认值处理
+        if not text:
+            write_log("WARNING: 文本参数为空，使用默认文本")
+            text = "默认插入文本"
+        
+        # 确保文本是字符串类型
+        if not isinstance(text, str):
+            text = str(text)
+            write_log(f"已将文本转换为字符串: {text[:50]}...")
+        
+        # 字体名称处理
+        if not font_name:
+            font_name = "SimSun"  # 默认宋体
+        write_log(f"使用字体: {font_name}")
+        
+        # 字体颜色处理
+        if not font_color:
+            font_color = "black"  # 默认黑色
+        
+        # 颜色映射（RGB值）
+        color_map = {
+            'black': 0x000000,      # 黑色
+            'red': 0xFF0000,        # 红色
+            'blue': 0x0000FF,       # 蓝色
+            'green': 0x00FF00,      # 绿色
+            'yellow': 0xFFFF00,     # 黄色
+            'orange': 0xFFA500,     # 橙色
+            'purple': 0x800080,     # 紫色
+            'brown': 0xA52A2A,      # 棕色
+            'gray': 0x808080,       # 灰色
+            'darkblue': 0x000080,   # 深蓝色
+        }
+        
+        # 获取颜色值
+        if isinstance(font_color, str) and font_color.lower() in color_map:
+            color_value = color_map[font_color.lower()]
+        elif isinstance(font_color, int):
+            color_value = font_color
+        else:
+            color_value = 0x000000  # 默认黑色
+            write_log(f"WARNING: 未识别的颜色 {font_color}，使用默认黑色")
+        
+        write_log(f"使用颜色: {font_color} (0x{color_value:06X})")
+        
+        # 字体大小处理
+        if not isinstance(font_size, (int, float)) or font_size <= 0:
+            font_size = 12  # 默认小四（12pt）
+        write_log(f"使用字体大小: {font_size}pt")
+        
+        write_log("尝试获取XSCRIPTCONTEXT...")
+        
+        # 获取文档上下文
+        desktop = XSCRIPTCONTEXT.getDesktop()
+        write_log("成功获取desktop")
+        
+        model = desktop.getCurrentComponent()
+        write_log(f"获取当前文档组件: {model}")
+
+        if not model:
+            write_log("ERROR: 没有打开的文档")
+            return "ERROR: 没有打开的文档"
+
+        # 获取文档的文本内容和光标
+        doc_text = model.getText()
+        cursor = doc_text.createTextCursor()
+        write_log("成功创建文本光标")
+        
+        # 添加时间戳
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # final_text = f"[{timestamp}] {text}"
+        final_text = f"{text}"
+        
+        write_log(f"准备插入的最终文本: {final_text[:100]}{'...' if len(final_text) > 100 else ''}")
+        
+        # 移动光标到文档末尾（也可以根据需要移动到当前位置）
+        cursor.gotoEnd(False)
+        
+        # 记录插入前的位置
+        start_range = cursor.getStart()
+        
+        # 在文档中插入文本
+        doc_text.insertString(cursor, final_text, False)
+        write_log("成功插入文本到文档")
+        
+        # 创建文本范围用于格式化 - 从插入开始位置到当前光标位置
+        text_range = doc_text.createTextCursorByRange(start_range)
+        text_range.gotoRange(cursor.getEnd(), True)  # 扩展选择到插入文本的结尾
+        
+        write_log("开始设置文本格式...")
+        
+        # 设置字体名称
+        text_range.setPropertyValue("CharFontName", font_name)
+        text_range.setPropertyValue("CharFontNameAsian", font_name)
+        text_range.setPropertyValue("CharFontNameComplex", font_name)
+        write_log(f"已设置字体: {font_name}")
+        
+        # 设置字体颜色
+        text_range.setPropertyValue("CharColor", color_value)
+        write_log(f"已设置字体颜色: 0x{color_value:06X}")
+        
+        # 设置字体大小
+        text_range.setPropertyValue("CharHeight", float(font_size))
+        text_range.setPropertyValue("CharHeightAsian", float(font_size))
+        text_range.setPropertyValue("CharHeightComplex", float(font_size))
+        write_log(f"已设置字体大小: {font_size}pt")
+        
+        write_log("文本格式设置完成")
+        
+        write_log("=== insert_text() 函数执行完成 ===")
+        return f"SUCCESS: 成功插入并格式化文本 ({len(final_text)} 字符, {font_name}, {font_color}, {font_size}pt)"
+        
+    except Exception as e:
+        error_msg = f"ERROR in insert_text(): {str(e)}"
+        error_traceback = traceback.format_exc()
+        write_log(f"{error_msg}\n{error_traceback}")
+        
+        # 尝试在文档中也显示错误信息
+        try:
+            desktop = XSCRIPTCONTEXT.getDesktop()
+            model = desktop.getCurrentComponent()
+            if model:
+                doc_text = model.getText()
+                cursor = doc_text.createTextCursor()
+                cursor.gotoEnd(False)
+                error_display = f"\n[ERROR] insert_text() 执行失败: {str(e)}\n"
+                doc_text.insertString(cursor, error_display, False)
+        except:
+            pass
+            
+        return error_msg
+
 # LibreOffice/Collabora CODE 要求导出函数
 # 这是必须的，否则CallPythonScript无法找到函数
-g_exportedScripts = (hello, get_document_content, test_uno_connection, simple_test, debug_params, search_and_format_text, search_and_replace_with_format, select_chapter,) 
+g_exportedScripts = (hello, get_document_content, test_uno_connection, simple_test, debug_params, search_and_format_text, search_and_replace_with_format, select_chapter, insert_text,) 

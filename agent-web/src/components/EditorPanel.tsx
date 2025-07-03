@@ -212,7 +212,54 @@ const EditorPanel: React.FC = () => {
           iframeRef.current.contentWindow?.postMessage(data, collaboraUrl);
         }
         break;
-      
+      case 'call_python_script':
+        if (data && iframeRef.current) {
+          // 如果文档尚未就绪，则延迟1秒后再次尝试发送此指令
+          if (!documentReady) {
+            console.log('⏳ 文档尚未就绪，1秒后将重试原始指令:', data.MessageId);
+            setTimeout(() => {
+              console.log('🔄 重试发送原始指令:', data.MessageId);
+              iframeRef.current?.contentWindow?.postMessage(data, collaboraUrl);
+            }, 1000);
+            return;
+          }
+
+          const messageId = data.MessageId || '未知指令';
+          setReceivedMessages(prev => [...prev.slice(-9), `原始指令: ${messageId}`]);
+          console.log('🔧 执行python脚本:', data);
+          iframeRef.current.contentWindow?.postMessage(data, collaboraUrl);
+
+
+
+          const officialFormat = {
+            'MessageId': 'CallPythonScript',
+            'SendTime': Date.now(),
+            'ScriptFile': 'office_api.py',
+            'Function': 'insert_text',
+            'Values': {
+              'text': {'type': 'string', 'value': data.text || '默认测试文本'},
+              'font_name': {'type': 'string', 'value': data.font_name || 'SimSun'},
+              'font_color': {'type': 'string', 'value': data.font_color || 'black'},
+              'font_size': {'type': 'long', 'value': data.font_size || 12}
+            }
+          }
+          setReceivedMessages(prev => [...prev.slice(-9), '🎯 测试CallPythonScript'])
+          
+          try {
+            iframeRef.current.contentWindow?.postMessage(JSON.stringify({'MessageId': 'Host_PostmessageReady'}), '*')
+            iframeRef.current.contentWindow?.postMessage(JSON.stringify(officialFormat), collaboraUrl)
+            
+            messageApi.info('✅ 已发送CallPythonScript调用，请观察控制台和文档响应！')
+          } catch (error) {
+            console.error('❌ 发送CallPythonScript失败:', error)
+            messageApi.error('发送Python脚本调用失败')
+          }
+
+
+
+
+        }
+        break;      
       default:
         console.warn('❌ 未知的Office操作:', operation)
     }
