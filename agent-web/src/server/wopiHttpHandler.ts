@@ -102,7 +102,9 @@ app.get('/wopi/files/:fileId', async (req: Request, res: Response) => {
       result.data.LastModifiedTime = stats.mtime.toISOString()
     }
 
+    console.log(`✅ 返回文件信息: ${JSON.stringify(result.data, null, 2)}`)
     res.json(result.data)
+    
   } catch (error) {
     console.error('❌ WOPI CheckFileInfo error:', error)
     res.status(500).json({ error: 'Internal server error' })
@@ -133,9 +135,13 @@ app.get('/wopi/files/:fileId/contents', async (req: Request, res: Response) => {
       const stats = fs.statSync(filePath)
       console.log(`📏 文件大小: ${stats.size} bytes`)
       
+      // 设置文件相关的响应头
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
       res.setHeader('Content-Length', stats.size.toString())
+      
+      console.log(`✅ 发送文件: ${filePath}, 大小: ${stats.size} bytes`)
       res.sendFile(filePath)
+      
     } else {
       console.log(`❌ 文件不存在: ${filePath}`)
       res.status(404).json({ error: 'File not found' })
@@ -551,5 +557,25 @@ const startHttpServer = () => {
 
 // 启动服务器
 createHttpsServer()
+
+// 全局错误处理
+process.on('uncaughtException', (error) => {
+  console.error('❌ 未捕获的异常:', error)
+})
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ 未处理的Promise拒绝:', reason)
+})
+
+// 优雅关闭处理
+process.on('SIGTERM', () => {
+  console.log('📟 收到SIGTERM信号，准备关闭服务器...')
+  process.exit(0)
+})
+
+process.on('SIGINT', () => {
+  console.log('📟 收到SIGINT信号，准备关闭服务器...')
+  process.exit(0)
+})
 
 export default app 

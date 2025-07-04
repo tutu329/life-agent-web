@@ -15,6 +15,10 @@ export interface WOPIFileInfo {
   SHA256?: string
   // 用户语言偏好
   UserPreferredLanguage?: string
+  // 基本支持字段
+  SupportsUpdate?: boolean
+  FileExtension?: string
+  ReadOnly?: boolean
 }
 
 export interface WOPIResponse {
@@ -52,7 +56,10 @@ export class WOPIService {
         PostMessageOrigin: 'https://powerai.cc:5101',
         LastModifiedTime: new Date().toISOString(),
         SHA256: 'dummy-hash',
-        UserPreferredLanguage: 'zh-CN' // 设置用户偏好语言为简体中文
+        UserPreferredLanguage: 'zh-CN', // 设置用户偏好语言为简体中文
+        SupportsUpdate: true,
+        FileExtension: '.docx',
+        ReadOnly: false
       }
 
       return { success: true, data: fileInfo }
