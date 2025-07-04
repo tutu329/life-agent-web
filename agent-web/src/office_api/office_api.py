@@ -1145,6 +1145,8 @@ def insert_text(text, font_name="SimSun", font_color="black", font_size=12):
         cursor = doc_text.createTextCursor()
         write_log("成功创建文本光标")
         
+        # \n\n转化为\n（不知道为什么，ds-v3就是会输出\n\n，指令完全控制不了）
+        text = text.replace('\n\n', '\n')
         # 将 \n 转换为 \r 以实现真正的段落换行而不是软换行
         final_text = text.replace('\n', '\r')
         
@@ -1441,16 +1443,13 @@ def insert_title(title, outline_level=1, font_name="SimSun", font_size=14, font_
     返回值：
     - dict: 包含操作结果的字典
     """
+    write_log(f"📝📝📝 insert_title() 函数被调用！标题: {title}")
+    write_log(f"参数: outline_level={outline_level}, font_name={font_name}, font_size={font_size}, font_color={font_color}, font_bold={font_bold}")
+    write_log("=== insert_title() 函数开始执行 ===")
+    
     try:
         # 获取时间戳
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
-        # 处理文本，将 \n 转换为 \r 以实现真正的段落换行，并在标题前后添加段落分隔符
-        final_text = '\r' + title.replace('\n', '\r') + '\r'  # 标题前后都添加段落分隔符
-        
-        write_log(f"插入标题: {final_text.rstrip()}")  # 日志中不显示换行符
-        write_log(f"大纲级别: {outline_level}")
-        write_log(f"字体: {font_name}, 大小: {font_size}, 颜色: {font_color}, 粗体: {font_bold}")
         
         # 获取文档上下文
         desktop = XSCRIPTCONTEXT.getDesktop()
@@ -1460,69 +1459,166 @@ def insert_title(title, outline_level=1, font_name="SimSun", font_size=14, font_
         
         # 移动到文档末尾
         cursor.gotoEnd(False)
+        write_log("光标已移动到文档末尾")
         
-        # 插入标题文本（包含段落分隔符）
-        doc_text.insertString(cursor, final_text, False)
-        
-        # 移动游标到刚插入文本的开始位置（不包括段落分隔符）
-        title_length = len(final_text.rstrip())  # 不包括末尾的段落分隔符
-        cursor.goLeft(len(final_text), False)  # 先移动到标题开始位置
-        cursor.goRight(title_length, True)  # 选中标题文本（不包括段落分隔符）
-        
-        # 设置字符格式
+        # === 第一步：检查是否需要在标题前添加段落分隔符 ===
+        # 使用XParagraphCursor接口的isStartOfParagraph()方法检查位置
+        is_at_paragraph_start = False
         try:
-            write_log(f"设置字体名称: {font_name}")
-            cursor.setPropertyValue("CharFontName", font_name)
+            # 创建段落光标来检查当前位置
+            temp_cursor = doc_text.createTextCursorByRange(cursor.getStart())
             
-            write_log(f"设置字体大小: {font_size}")
+            # 尝试查询XParagraphCursor接口
+            try:
+                # 根据UNO API规范，使用queryInterface获取接口
+                para_cursor_interface = temp_cursor.queryInterface(uno.getTypeByName("com.sun.star.text.XParagraphCursor"))
+                if para_cursor_interface and hasattr(para_cursor_interface, 'isStartOfParagraph'):
+                    is_at_paragraph_start = para_cursor_interface.isStartOfParagraph()
+                    write_log(f"使用XParagraphCursor.isStartOfParagraph()检查: {is_at_paragraph_start}")
+                else:
+                    raise Exception("无法获取XParagraphCursor接口")
+            except Exception as interface_error:
+                write_log(f"⚠️ queryInterface失败: {str(interface_error)}")
+                # 备用方法：检查光标前是否有文本
+                test_cursor = doc_text.createTextCursorByRange(cursor.getStart())
+                try:
+                    if test_cursor.goLeft(1, True):
+                        # 如果能向左移动，说明前面有字符，检查是否为段落分隔符
+                        selected_text = test_cursor.getString()
+                        is_at_paragraph_start = (selected_text == "\r" or selected_text == "\n")
+                        write_log(f"备用方法检查前一字符: '{repr(selected_text)}', 结果: {is_at_paragraph_start}")
+                    else:
+                        # 如果无法向左移动，说明在文档开始
+                        is_at_paragraph_start = True
+                        write_log("无法向左移动，认为在文档开始（段落开始）")
+                except Exception as backup_error:
+                    write_log(f"⚠️ 备用方法也失败: {str(backup_error)}")
+                    # 最保守的方法：检查当前光标是否选中了内容
+                    if cursor.isCollapsed():
+                        # 光标没有选中内容，可能在段落开始
+                        is_at_paragraph_start = True
+                        write_log("光标无选中内容，假设在段落开始")
+                    else:
+                        is_at_paragraph_start = False
+                        write_log("光标有选中内容，假设不在段落开始")
+        except Exception as para_error:
+            write_log(f"⚠️ 段落位置检查失败: {str(para_error)}")
+            # 最终保守处理：总是添加段落分隔符以确保标题独立成段
+            is_at_paragraph_start = False
+            write_log("所有检查方法都失败，保守起见总是添加段落分隔符")
+        
+        write_log(f"最终判断 - 当前位置是否在段落开始: {is_at_paragraph_start}")
+        
+        # 如果不在段落开始，需要先添加段落分隔符
+        prefix_text = "" if is_at_paragraph_start else "\r"
+        
+        # 处理标题文本，将 \n 转换为 \r
+        processed_title = title.replace('\n', '\r')
+        
+        # 构建完整的插入文本：前缀 + 标题 + 后缀段落分隔符
+        final_text = prefix_text + processed_title + "\r"
+        
+        write_log(f"将要插入的文本: '{final_text}' (前缀:{len(prefix_text)}字符, 标题:{len(processed_title)}字符, 后缀:1字符)")
+        
+        # === 第二步：插入完整文本 ===
+        doc_text.insertString(cursor, final_text, False)
+        write_log("文本已插入到文档")
+        
+        # === 第三步：选中标题文本进行格式设置 ===
+        # 计算标题文本的位置（跳过前缀，不包含后缀）
+        title_start_offset = len(prefix_text)
+        title_length = len(processed_title)
+        
+        # 回到插入文本的开始位置
+        cursor.goLeft(len(final_text), False)
+        write_log("光标已移动到插入文本的开始位置")
+        
+        # 移动到标题开始位置（跳过前缀）
+        if title_start_offset > 0:
+            cursor.goRight(title_start_offset, False)
+            write_log(f"光标已跳过前缀，移动到标题开始位置")
+        
+        # 选中标题文本
+        cursor.goRight(title_length, True)
+        write_log(f"已选中标题文本 ({title_length} 字符): '{cursor.getString()}'")
+        
+        # === 第四步：设置字符格式 ===
+        try:
+            write_log("开始设置字符格式...")
+            
+            # 设置字体名称 (包括所有字体变体)
+            cursor.setPropertyValue("CharFontName", font_name)
+            cursor.setPropertyValue("CharFontNameAsian", font_name)
+            cursor.setPropertyValue("CharFontNameComplex", font_name)
+            write_log(f"已设置字体名称: {font_name}")
+            
+            # 设置字体大小 (包括所有字体变体)
             cursor.setPropertyValue("CharHeight", float(font_size))
+            cursor.setPropertyValue("CharHeightAsian", float(font_size))
+            cursor.setPropertyValue("CharHeightComplex", float(font_size))
+            write_log(f"已设置字体大小: {font_size}pt")
             
             # 处理字体颜色
-            if font_color.lower() == "black":
-                color_value = 0x000000
-            elif font_color.lower() == "red":
-                color_value = 0xFF0000
-            elif font_color.lower() == "blue":
-                color_value = 0x0000FF
-            elif font_color.lower() == "green":
-                color_value = 0x008000
+            color_map = {
+                'black': 0x000000,
+                'red': 0xFF0000,
+                'blue': 0x0000FF,
+                'green': 0x008000,
+                'yellow': 0xFFFF00,
+                'orange': 0xFFA500,
+                'purple': 0x800080,
+                'brown': 0xA52A2A,
+                'gray': 0x808080,
+            }
+            
+            if isinstance(font_color, str) and font_color.lower() in color_map:
+                color_value = color_map[font_color.lower()]
             elif isinstance(font_color, int):
                 color_value = font_color
             else:
                 color_value = 0x000000  # 默认黑色
+                write_log(f"⚠️ 未识别的颜色 {font_color}，使用默认黑色")
             
-            write_log(f"设置字体颜色: {color_value}")
             cursor.setPropertyValue("CharColor", color_value)
+            write_log(f"已设置字体颜色: {font_color} (0x{color_value:06X})")
             
             # 设置字体粗细
             if font_bold:
-                write_log("设置粗体")
+                import com.sun.star.awt.FontWeight
                 cursor.setPropertyValue("CharWeight", com.sun.star.awt.FontWeight.BOLD)
+                write_log("已设置为粗体")
             else:
+                import com.sun.star.awt.FontWeight
                 cursor.setPropertyValue("CharWeight", com.sun.star.awt.FontWeight.NORMAL)
+                write_log("已设置为正常字重")
                 
         except Exception as e:
-            write_log(f"设置字符格式时出错: {str(e)}")
+            write_log(f"❌ 设置字符格式时出错: {str(e)}")
         
-        # 设置段落格式（固定值）
+        # === 第五步：设置段落格式 ===
         try:
-            write_log("设置段落格式")
+            write_log("开始设置段落格式...")
             
-            # 设置行间距为1.5倍 - 使用固定模式以获得更精确控制
+            # 设置行间距为1.5倍
             line_spacing_struct = uno.createUnoStruct("com.sun.star.style.LineSpacing")
-            line_spacing_struct.Mode = 3  # FIXED模式
-            line_spacing_struct.Height = int(font_size * 1.5 * 35.28)  # 转换为1/100mm，35.28是pt到1/100mm的转换系数
+            line_spacing_struct.Mode = 0  # PROP模式 (比例模式)
+            line_spacing_struct.Height = 150  # 150%
             cursor.setPropertyValue("ParaLineSpacing", line_spacing_struct)
-            write_log(f"设置行间距: 1.5倍 (固定模式, {line_spacing_struct.Height} 1/100mm)")
+            write_log(f"已设置行间距: 1.5倍 (比例模式, 150%)")
             
             # 设置首行缩进为0
             cursor.setPropertyValue("ParaFirstLineIndent", 0)
-            write_log("设置首行缩进: 0")
+            write_log("已设置首行缩进: 0")
+            
+            # 设置左右边距为0
+            cursor.setPropertyValue("ParaLeftMargin", 0)
+            cursor.setPropertyValue("ParaRightMargin", 0)
+            write_log("已设置左右边距: 0")
             
         except Exception as e:
-            write_log(f"设置段落格式时出错: {str(e)}")
+            write_log(f"❌ 设置段落格式时出错: {str(e)}")
         
-        # 设置大纲级别
+        # === 第六步：设置大纲级别 ===
         try:
             # 验证大纲级别范围
             if outline_level < 1:
@@ -1530,30 +1626,45 @@ def insert_title(title, outline_level=1, font_name="SimSun", font_size=14, font_
             elif outline_level > 10:
                 outline_level = 10
             
-            write_log(f"设置大纲级别: {outline_level}")
             cursor.setPropertyValue("OutlineLevel", outline_level)
-            write_log(f"成功设置大纲级别为: {outline_level}")
+            write_log(f"已设置大纲级别: {outline_level}")
             
         except Exception as e:
-            write_log(f"设置大纲级别时出错: {str(e)}")
+            write_log(f"❌ 设置大纲级别时出错: {str(e)}")
         
-        # 移动游标到文档末尾，格式设置完成
+        # === 第七步：移动光标到文档末尾 ===
         cursor.gotoEnd(False)
-        write_log("标题格式设置完成，已自动添加段落分隔符")
+        write_log("光标已移动到文档末尾，格式设置完成")
         
-        write_log(f"标题插入完成: {final_text.rstrip()}")
+        write_log(f"✅ 标题插入完成: {processed_title}")
+        write_log("=== insert_title() 函数执行完成 ===")
         
         return {
             "status": "success",
-            "message": f"标题插入成功: {final_text}",
+            "message": f"标题插入成功: {processed_title}",
             "title": title,
             "outline_level": outline_level,
             "timestamp": timestamp
         }
         
     except Exception as e:
-        error_msg = f"插入标题时出错: {str(e)}"
-        write_log(error_msg)
+        error_msg = f"ERROR in insert_title(): {str(e)}"
+        error_traceback = traceback.format_exc()
+        write_log(f"{error_msg}\n{error_traceback}")
+        
+        # 尝试在文档中也显示错误信息
+        try:
+            desktop = XSCRIPTCONTEXT.getDesktop()
+            model = desktop.getCurrentComponent()
+            if model:
+                doc_text = model.getText()
+                cursor = doc_text.createTextCursor()
+                cursor.gotoEnd(False)
+                error_display = f"\n[ERROR] insert_title() 执行失败: {str(e)}\n"
+                doc_text.insertString(cursor, error_display, False)
+        except:
+            pass
+        
         return {
             "status": "error",
             "message": error_msg,
