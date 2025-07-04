@@ -2,7 +2,10 @@
 # -*- coding: utf-8 -*-
 
 import re
-from typing import List, Dict, Tuple, Optional
+import pathlib
+import shutil
+import subprocess
+from typing import List, Dict, Tuple, Optional, Union
 from docx import Document
 from docx.shared import Inches
 import os
@@ -10,7 +13,8 @@ import argparse
 
 class DocxOutlineExtractor:
     """
-    DOCX文档大纲提取器
+    DOCX/DOC文档大纲提取器
+    支持 .doc 自动转换为 .docx（依赖 LibreOffice CLI）
     通过正则表达式系统性分析文档结构，提取章节大纲
     """
     
@@ -35,12 +39,56 @@ class DocxOutlineExtractor:
             'hash_date': r'^#\s*\d{4}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*日',  # 过滤# 2024年12月16日
         }
     
+    def _convert_with_libreoffice(self, src: pathlib.Path) -> pathlib.Path:
+        """
+        使用 LibreOffice CLI 将 .doc 转为 .docx。
+        
+        LibreOffice 会把输出文件放到工作目录（缺省是 cwd）。
+        若目标存在则覆盖。
+        """
+        soffice = shutil.which("soffice") or shutil.which("libreoffice")
+        if not soffice:
+            raise RuntimeError("未找到 LibreOffice，可执行文件 soffice / libreoffice 不在 PATH。\n"
+                             "请安装 LibreOffice: sudo apt install libreoffice")
+
+        dst = src.with_suffix(".docx")
+        # --headless: 无界面；--convert-to: 格式；--outdir: 指定输出目录
+        cmd = [
+            soffice,
+            "--headless",
+            "--convert-to",
+            "docx",
+            "--outdir",
+            str(src.parent),
+            str(src),
+        ]
+        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if proc.returncode:
+            raise RuntimeError(
+                f"LibreOffice 转换失败 (exit {proc.returncode}).\nSTDERR:\n{proc.stderr.decode(errors='ignore')}"
+            )
+        if not dst.exists():
+            raise RuntimeError("LibreOffice 返回 0，但未找到生成的 .docx 文件。")
+        return dst
+
+    def _ensure_docx(self, path: Union[str, pathlib.Path]) -> str:
+        """若输入是 .doc，调用 LibreOffice 转换；否则直接返回 .docx 路径。"""
+        p = pathlib.Path(path)
+        if p.suffix.lower() == ".docx":
+            return str(p)
+        if p.suffix.lower() == ".doc":
+            print(f"检测到 .doc 文件，正在转换为 .docx: {p}")
+            converted_path = self._convert_with_libreoffice(p)
+            print(f"转换完成: {converted_path}")
+            return str(converted_path)
+        raise ValueError("仅支持 .doc / .docx 文件")
+
     def extract_outline(self, file_path: str, max_depth: int = 6) -> List[Dict]:
         """
         提取文档大纲
         
         Args:
-            file_path: docx文件路径
+            file_path: doc/docx文件路径
             max_depth: 最大级别深度
             
         Returns:
@@ -49,8 +97,11 @@ class DocxOutlineExtractor:
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"文件不存在: {file_path}")
         
+        # 确保是 .docx 格式（如果是 .doc 则自动转换）
+        docx_path = self._ensure_docx(file_path)
+        
         # 读取文档
-        doc = Document(file_path)
+        doc = Document(docx_path)
         paragraphs = []
         
         # 提取所有段落
@@ -360,6 +411,12 @@ def extract_file_outline(file_path: str, max_depth: int = 6, show_details: bool 
         print(f"错误: 文件不存在: {file_path}")
         return
     
+    # 检查文件类型
+    file_ext = pathlib.Path(file_path).suffix.lower()
+    if file_ext not in ['.doc', '.docx']:
+        print(f"错误: 不支持的文件格式 {file_ext}，仅支持 .doc 和 .docx 文件")
+        return
+    
     print(f"正在分析文件: {file_path}")
     
     try:
@@ -385,19 +442,24 @@ def extract_file_outline(file_path: str, max_depth: int = 6, show_details: bool 
 def main():
     """主函数，处理命令行参数"""
     parser = argparse.ArgumentParser(
-        description="从 DOCX 文档中提取大纲结构",
+        description="从 DOC/DOCX 文档中提取大纲结构",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 使用示例:
   python from_server_docx_outline.py 我的模板.docx
-  python from_server_docx_outline.py 报告.docx --max-depth 4
+  python from_server_docx_outline.py 报告.doc --max-depth 4
   python from_server_docx_outline.py 文档.docx --details
+
+依赖要求:
+  - 处理 .doc 文件需要安装 LibreOffice:
+    sudo apt install libreoffice
+  - 处理 .docx 文件仅需要 python-docx 库
         """
     )
     
     parser.add_argument(
         'file_path', 
-        help='要分析的 DOCX 文件路径'
+        help='要分析的 DOC/DOCX 文件路径'
     )
     
     parser.add_argument(
