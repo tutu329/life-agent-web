@@ -26,8 +26,7 @@ export interface Agents_System_Request {
 }
 
 export interface Query_Agent_Context {
-  template_filename: string
-  shared_filename: string
+  custom_data_dict: { [key: string]: any }
 }
 
 export interface Query_Agent_Request {
@@ -192,7 +191,7 @@ export class AgentService {
     const request: Query_Agent_Request = {
       agent_id: this.agentId,
       query: query,
-      context: context || { template_filename: '', shared_filename: '' }
+      context: context || { custom_data_dict: {} }
     }
 
     try {

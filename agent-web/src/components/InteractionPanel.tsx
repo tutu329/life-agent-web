@@ -258,8 +258,10 @@ const InteractionPanel: React.FC = () => {
 
       // 发送查询请求，包含文件上下文
       const context = {
-        template_filename: selectedTemplateFile,
-        shared_filename: selectedSharedFile
+        custom_data_dict: {
+          template_filename: selectedTemplateFile,
+          shared_filename: selectedSharedFile
+        }
       }
       console.log('🔍 当前Agent ID:', agentService.getAgentId())
       console.log('📁 文件上下文:', context)
