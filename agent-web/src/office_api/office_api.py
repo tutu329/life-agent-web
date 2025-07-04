@@ -1445,8 +1445,8 @@ def insert_title(title, outline_level=1, font_name="SimSun", font_size=14, font_
         # 获取时间戳
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
-        # 处理文本，将 \n 转换为 \r 以实现真正的段落换行，并在标题后添加段落分隔符
-        final_text = title.replace('\n', '\r') + '\r'  # 标题后自动添加段落分隔符
+        # 处理文本，将 \n 转换为 \r 以实现真正的段落换行，并在标题前后添加段落分隔符
+        final_text = '\r' + title.replace('\n', '\r') + '\r'  # 标题前后都添加段落分隔符
         
         write_log(f"插入标题: {final_text.rstrip()}")  # 日志中不显示换行符
         write_log(f"大纲级别: {outline_level}")
