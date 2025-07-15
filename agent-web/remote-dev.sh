@@ -43,6 +43,19 @@ fi
 
 # 连接到远程服务器并启动开发环境
 ssh -p $REMOTE_PORT $REMOTE_USER@$REMOTE_HOST << 'EOF'
+# 强制加载环境变量
+set -a  # 自动导出所有变量
+source ~/.bashrc
+source ~/.profile 2>/dev/null || true
+set +a
+
+# 手动设置 GROQ_API_KEY（从.bashrc中读取）
+if [ -z "$GROQ_API_KEY" ]; then
+  # 如果环境变量为空，尝试从.bashrc中提取
+  GROQ_API_KEY=$(grep "export GROQ_API_KEY" ~/.bashrc | cut -d'"' -f2)
+  export GROQ_API_KEY
+fi
+
 # 加载nvm并使用Node.js 18
 source ~/.nvm/nvm.sh
 nvm use 18
@@ -231,5 +244,18 @@ echo "WOPI 服务器: https://powerai.cc:5103"
 
 # 启动开发服务器 (使用HTTPS)
 export VITE_HTTPS=true
+
+# 检查环境变量是否正确加载
+echo "🔍 检查环境变量状态:"
+echo "🔑 GROQ_API_KEY 是否设置: ${GROQ_API_KEY:+已设置}"
+echo "🔑 GROQ_API_KEY 前20个字符: ${GROQ_API_KEY:0:20}..."
+echo "🔑 环境变量长度: ${#GROQ_API_KEY}"
+
+if [ -z "$GROQ_API_KEY" ]; then
+  echo "❌ 错误: GROQ_API_KEY 环境变量未设置"
+  echo "请确保在 ~/.bashrc 中设置了: export GROQ_API_KEY=\"your_api_key\""
+  exit 1
+fi
+
 npm run dev -- --port 5101 --host 0.0.0.0
 EOF 

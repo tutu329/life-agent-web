@@ -4,6 +4,9 @@ import fs from 'fs'
 
 export default defineConfig({
   plugins: [react()],
+  define: {
+    'import.meta.env.VITE_GROQ_API_KEY': JSON.stringify(process.env.GROQ_API_KEY)
+  },
   server: {
     host: '0.0.0.0',
     port: 5173,
