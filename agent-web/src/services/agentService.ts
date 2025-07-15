@@ -1,11 +1,18 @@
 // Agent系统相关的数据类型定义
-export interface Agent_Config {
-  tool_names: string[]
-  exp_json_path: string
+export interface LLM_Config {
   base_url: string
   api_key: string
   llm_model_id: string
   temperature: number
+  top_p: number
+  max_new_tokens: number
+  vpn_on: boolean
+}
+
+export interface Agent_Config {
+  tool_names: string[]
+  exp_json_path: string
+  llm_config: LLM_Config
 }
 
 export interface Agent_As_Tool_Config {
@@ -13,10 +20,7 @@ export interface Agent_As_Tool_Config {
   exp_json_path: string
   as_tool_name: string
   as_tool_description: string
-  base_url: string
-  api_key: string
-  llm_model_id: string
-  temperature: number
+  llm_config: LLM_Config
 }
 
 export interface Agents_System_Request {
@@ -106,15 +110,91 @@ export class AgentService {
 
   // 初始化Agent系统
   async initializeAgentSystem(): Promise<string> {
+    // const request: Agents_System_Request = {
+    //   remote_tools: [],
+    //   upper_agent_config: {
+    //     tool_names: ['Folder_Tool'],
+    //     exp_json_path: 'my_2_levels_mas_exp.json',
+    //     llm_config: {
+    //       base_url: 'https://api.deepseek.com/v1',
+    //       api_key: 'sk-c1d34a4f21e3413487bb4b2806f6c4b8',
+    //       llm_model_id: 'deepseek-chat',
+    //       temperature: 0.65,
+    //       top_p: 0.9,
+    //       max_new_tokens: 1000,
+    //       vpn_on: false
+    //     }
+    //   },
+    //   lower_agents_config: [
+    //     {
+    //       tool_names: ['Write_Chapter_Tool'],
+    //       // tool_names: ['Human_Console_Tool', 'Folder_Tool'],
+    //       exp_json_path: '',
+    //       as_tool_name: 'Write_Chapter_Agent_As_Tool',
+    //       // as_tool_name: 'Folder_Agent_As_Tool',
+    //       as_tool_description: '本工具用于在office文档中编制一个章节的内容',
+    //       llm_config: {
+    //         base_url: 'https://api.deepseek.com/v1',
+    //         api_key: 'sk-c1d34a4f21e3413487bb4b2806f6c4b8',
+    //         llm_model_id: 'deepseek-chat',
+    //         temperature: 0.70,
+    //         top_p: 0.9,
+    //         max_new_tokens: 1000,
+    //         vpn_on: false
+    //       }
+    //     }
+    //   ]
+    // }
+
+    // const request: Agents_System_Request = {
+    //   remote_tools: [],
+    //   upper_agent_config: {
+    //     tool_names: ['Folder_Tool'],
+    //     exp_json_path: 'my_2_levels_mas_exp.json',
+    //     llm_config: {
+    //       base_url: 'https://api.groq.com/openai/v1',
+    //       api_key: 'your_groq_api_key_here',
+    //       llm_model_id: 'moonshotai/kimi-k2-instruct',
+    //       temperature: 0.6,
+    //       top_p: 0.9,
+    //       max_new_tokens: 8192,
+    //       vpn_on: true
+    //     }
+    //   },
+    //   lower_agents_config: [
+    //     {
+    //       tool_names: ['Write_Chapter_Tool'],
+    //       // tool_names: ['Human_Console_Tool', 'Folder_Tool'],
+    //       exp_json_path: '',
+    //       as_tool_name: 'Write_Chapter_Agent_As_Tool',
+    //       // as_tool_name: 'Folder_Agent_As_Tool',
+    //       as_tool_description: '本工具用于在office文档中编制一个章节的内容',
+    //       llm_config: {
+    //         base_url: 'https://api.groq.com/openai/v1',
+    //         api_key: 'your_groq_api_key_here',
+    //         llm_model_id: 'moonshotai/kimi-k2-instruct',
+    //         temperature: 0.6,
+    //         top_p: 0.9,
+    //         max_new_tokens: 8192,
+    //         vpn_on: true
+    //       }
+    //     }
+    //   ]
+    // }
     const request: Agents_System_Request = {
       remote_tools: [],
       upper_agent_config: {
         tool_names: ['Folder_Tool'],
         exp_json_path: 'my_2_levels_mas_exp.json',
-        base_url: 'https://api.deepseek.com/v1',
-        api_key: 'sk-c1d34a4f21e3413487bb4b2806f6c4b8',
-        llm_model_id: 'deepseek-chat',
-        temperature: 0.65
+        llm_config: {
+          base_url: 'https://api.deepseek.com/v1',
+          api_key: 'sk-c1d34a4f21e3413487bb4b2806f6c4b8',
+          llm_model_id: 'deepseek-chat',
+          temperature: 0.6,
+          top_p: 0.9,
+          max_new_tokens: 8192,
+          vpn_on: false
+        }
       },
       lower_agents_config: [
         {
@@ -124,38 +204,18 @@ export class AgentService {
           as_tool_name: 'Write_Chapter_Agent_As_Tool',
           // as_tool_name: 'Folder_Agent_As_Tool',
           as_tool_description: '本工具用于在office文档中编制一个章节的内容',
-          base_url: 'https://api.deepseek.com/v1',
-          api_key: 'sk-c1d34a4f21e3413487bb4b2806f6c4b8',
-          llm_model_id: 'deepseek-chat',
-          temperature: 0.70
+          llm_config: {
+            base_url: 'https://api.deepseek.com/v1',
+            api_key: 'sk-c1d34a4f21e3413487bb4b2806f6c4b8',
+            llm_model_id: 'deepseek-chat',
+            temperature: 0.6,
+            top_p: 0.9,
+            max_new_tokens: 8192,
+            vpn_on: false
+          }
         }
       ]
     }
-    // const request: Agents_System_Request = {
-    //   remote_tools: [],
-    //   upper_agent_config: {
-    //     tool_names: ['Office_Tool'],
-    //     exp_json_path: 'my_2_levels_mas_exp.json',
-    //     base_url: 'https://api.deepseek.com/v1',
-    //     api_key: 'sk-c1d34a4f21e3413487bb4b2806f6c4b8',
-    //     llm_model_id: 'deepseek-chat',
-    //     temperature: 0.65
-    //   },
-    //   lower_agents_config: [
-    //     {
-    //       tool_names: ['Office_Tool'],
-    //       // tool_names: ['Human_Console_Tool', 'Folder_Tool'],
-    //       exp_json_path: '',
-    //       as_tool_name: 'Office_Agent_As_Tool',
-    //       // as_tool_name: 'Folder_Agent_As_Tool',
-    //       as_tool_description: '本工具用于读写office文档',
-    //       base_url: 'https://api.deepseek.com/v1',
-    //       api_key: 'sk-c1d34a4f21e3413487bb4b2806f6c4b8',
-    //       llm_model_id: 'deepseek-chat',
-    //       temperature: 0.70
-    //     }
-    //   ]
-    // }
 
     try {
       const response = await fetch(`${this.baseUrl}/api/start_2_level_agents_system`, {
