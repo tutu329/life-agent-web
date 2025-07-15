@@ -113,41 +113,42 @@ export class AgentService {
     // 输出环境变量调试信息
     console.log('🔑 VITE_GROQ_API_KEY 环境变量:', import.meta.env.VITE_GROQ_API_KEY || '未设置')
     console.log('🔑 环境变量长度:', (import.meta.env.VITE_GROQ_API_KEY || '').length)
-    // const request: Agents_System_Request = {
-    //   remote_tools: [],
-    //   upper_agent_config: {
-    //     tool_names: ['Folder_Tool'],
-    //     exp_json_path: 'my_2_levels_mas_exp.json',
-    //     llm_config: {
-    //       base_url: 'https://api.deepseek.com/v1',
-    //       api_key: 'sk-c1d34a4f21e3413487bb4b2806f6c4b8',
-    //       llm_model_id: 'deepseek-chat',
-    //       temperature: 0.65,
-    //       top_p: 0.9,
-    //       max_new_tokens: 1000,
-    //       vpn_on: false
-    //     }
-    //   },
-    //   lower_agents_config: [
-    //     {
-    //       tool_names: ['Write_Chapter_Tool'],
-    //       // tool_names: ['Human_Console_Tool', 'Folder_Tool'],
-    //       exp_json_path: '',
-    //       as_tool_name: 'Write_Chapter_Agent_As_Tool',
-    //       // as_tool_name: 'Folder_Agent_As_Tool',
-    //       as_tool_description: '本工具用于在office文档中编制一个章节的内容',
-    //       llm_config: {
-    //         base_url: 'https://api.deepseek.com/v1',
-    //         api_key: 'sk-c1d34a4f21e3413487bb4b2806f6c4b8',
-    //         llm_model_id: 'deepseek-chat',
-    //         temperature: 0.70,
-    //         top_p: 0.9,
-    //         max_new_tokens: 1000,
-    //         vpn_on: false
-    //       }
-    //     }
-    //   ]
-    // }
+
+    const request: Agents_System_Request = {
+      remote_tools: [],
+      upper_agent_config: {
+        tool_names: ['Folder_Tool'],
+        exp_json_path: 'my_2_levels_mas_exp.json',
+        llm_config: {
+          base_url: 'https://api.deepseek.com/v1',
+          api_key: 'sk-c1d34a4f21e3413487bb4b2806f6c4b8',
+          llm_model_id: 'deepseek-chat',
+          temperature: 0.65,
+          top_p: 0.9,
+          max_new_tokens: 1000,
+          vpn_on: false
+        }
+      },
+      lower_agents_config: [
+        {
+          tool_names: ['Write_Chapter_Tool'],
+          // tool_names: ['Human_Console_Tool', 'Folder_Tool'],
+          exp_json_path: '',
+          as_tool_name: 'Write_Chapter_Agent_As_Tool',
+          // as_tool_name: 'Folder_Agent_As_Tool',
+          as_tool_description: '本工具用于在office文档中编制一个章节的内容',
+          llm_config: {
+            base_url: 'https://api.deepseek.com/v1',
+            api_key: 'sk-c1d34a4f21e3413487bb4b2806f6c4b8',
+            llm_model_id: 'deepseek-chat',
+            temperature: 0.70,
+            top_p: 0.9,
+            max_new_tokens: 1000,
+            vpn_on: false
+          }
+        }
+      ]
+    }
 
     // const request: Agents_System_Request = {
     //   remote_tools: [],
@@ -156,7 +157,7 @@ export class AgentService {
     //     exp_json_path: 'my_2_levels_mas_exp.json',
     //     llm_config: {
     //       base_url: 'https://api.groq.com/openai/v1',
-    //       api_key: 'your_groq_api_key_here',
+    //       api_key: import.meta.env.VITE_GROQ_API_KEY || '',
     //       llm_model_id: 'moonshotai/kimi-k2-instruct',
     //       temperature: 0.6,
     //       top_p: 0.9,
@@ -174,7 +175,7 @@ export class AgentService {
     //       as_tool_description: '本工具用于在office文档中编制一个章节的内容',
     //       llm_config: {
     //         base_url: 'https://api.groq.com/openai/v1',
-    //         api_key: 'your_groq_api_key_here',
+    //         api_key: import.meta.env.VITE_GROQ_API_KEY || '',
     //         llm_model_id: 'moonshotai/kimi-k2-instruct',
     //         temperature: 0.6,
     //         top_p: 0.9,
@@ -184,41 +185,6 @@ export class AgentService {
     //     }
     //   ]
     // }
-    const request: Agents_System_Request = {
-      remote_tools: [],
-      upper_agent_config: {
-        tool_names: ['Folder_Tool'],
-        exp_json_path: 'my_2_levels_mas_exp.json',
-        llm_config: {
-          base_url: 'https://api.groq.com/openai/v1',
-          api_key: import.meta.env.VITE_GROQ_API_KEY || '',
-          llm_model_id: 'moonshotai/kimi-k2-instruct',
-          temperature: 0.6,
-          top_p: 0.9,
-          max_new_tokens: 8192,
-          vpn_on: true
-        }
-      },
-      lower_agents_config: [
-        {
-          tool_names: ['Write_Chapter_Tool'],
-          // tool_names: ['Human_Console_Tool', 'Folder_Tool'],
-          exp_json_path: '',
-          as_tool_name: 'Write_Chapter_Agent_As_Tool',
-          // as_tool_name: 'Folder_Agent_As_Tool',
-          as_tool_description: '本工具用于在office文档中编制一个章节的内容',
-          llm_config: {
-            base_url: 'https://api.groq.com/openai/v1',
-            api_key: import.meta.env.VITE_GROQ_API_KEY || '',
-            llm_model_id: 'moonshotai/kimi-k2-instruct',
-            temperature: 0.6,
-            top_p: 0.9,
-            max_new_tokens: 8192,
-            vpn_on: true
-          }
-        }
-      ]
-    }
 
     try {
       const response = await fetch(`${this.baseUrl}/api/start_2_level_agents_system`, {
