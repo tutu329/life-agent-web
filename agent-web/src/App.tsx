@@ -348,16 +348,25 @@ function App() {
             setSelectedTemplateFile, 
             setSelectedSharedFile 
           }}>
-            <Layout style={{ 
+            {/* <Layout style={{ 
               height: '100vh',
               minHeight: screenWidth <= 1024 ? 'calc(100vh - env(safe-area-inset-top, 0px))' : '100vh' // iPad安全区域适配
-            }}>
+            }}> */}
+            <Layout
+              className="app-root"
+              style={{
+                height: '100%',          // 占满 #root 剩余空间
+                // minHeight: '100vh',      // 至少视口高
+              }}
+            >
+
+
           {/* 顶部 Header */}
           <Header style={{ 
             background: '#f8fafc', 
             padding: '0', // 移除所有内边距，让内部容器处理布局
-            height: screenWidth <= 1024 ? `calc(52px + env(safe-area-inset-top, 0px))` : '28px', // 总高度包含安全区域
-            minHeight: screenWidth <= 1024 ? `calc(52px + env(safe-area-inset-top, 0px))` : '28px',
+            height: screenWidth <= 1024 ? `calc(52px + env(safe-area-inset-top, 0px))` : '48px', // 总高度包含安全区域
+            minHeight: screenWidth <= 1024 ? `calc(52px + env(safe-area-inset-top, 0px))` : '48px',
             borderBottom: '1px solid #e2e8f0',
             position: 'relative',
             boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
@@ -383,9 +392,9 @@ function App() {
                 icon={leftSiderCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
                 onClick={toggleLeftSider}
                 style={{ 
-                  fontSize: screenWidth <= 1024 ? '16px' : '11px', 
-                  height: screenWidth <= 1024 ? '36px' : '20px', 
-                  padding: screenWidth <= 1024 ? '0 12px' : '0 6px',
+                  fontSize: screenWidth <= 1024 ? '16px' : '14px', 
+                  height: screenWidth <= 1024 ? '36px' : '32px', 
+                  padding: screenWidth <= 1024 ? '0 12px' : '0 8px',
                   minWidth: screenWidth <= 1024 ? '36px' : 'auto',
                   display: 'flex',
                   alignItems: 'center',
@@ -404,9 +413,9 @@ function App() {
                 icon={<SettingOutlined />} 
                 onClick={showSettingsModal}
                 style={{ 
-                  fontSize: screenWidth <= 1024 ? '16px' : '11px', 
-                  height: screenWidth <= 1024 ? '36px' : '20px', 
-                  padding: screenWidth <= 1024 ? '0 12px' : '0 6px',
+                  fontSize: screenWidth <= 1024 ? '16px' : '14px', 
+                  height: screenWidth <= 1024 ? '36px' : '32px', 
+                  padding: screenWidth <= 1024 ? '0 12px' : '0 8px',
                   minWidth: screenWidth <= 1024 ? '60px' : 'auto',
                   display: 'flex',
                   alignItems: 'center',
