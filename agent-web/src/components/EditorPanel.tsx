@@ -989,7 +989,7 @@ const EditorPanel: React.FC = () => {
       children: (
         <div style={{ 
           padding: '24px', 
-          height: 'calc(100vh - 120px)', 
+          height: 'calc(100vh - 96px)', 
           display: 'flex', 
           alignItems: 'center', 
           justifyContent: 'center',
@@ -1011,16 +1011,19 @@ const EditorPanel: React.FC = () => {
         <span>
           <FileTextOutlined />
           报告编制
+          {/* 
           <Badge 
             dot={wsConnected} 
             status={wsConnected ? 'success' : 'error'} 
             style={{ marginLeft: '8px' }}
           />
+          */}
         </span>
       ),
       children: (
-        <div style={{ height: 'calc(100vh - 72px)' }}>
+        <div style={{ height: 'calc(100vh - 48px)' }}>
           {/* WebSocket状态显示 */}
+          {/* 
           <div style={{ 
             padding: '8px 16px', 
             background: wsConnected ? '#f6ffed' : '#fff2f0',
@@ -1041,8 +1044,10 @@ const EditorPanel: React.FC = () => {
               </span>
             )}
           </div>
+          */}
           
-                    {/* 测试按钮区域 */}
+          {/* 测试按钮区域 */}
+          {/*
           <div style={{ 
             padding: '8px 16px', 
             background: '#f0f2f5',
@@ -1108,6 +1113,7 @@ const EditorPanel: React.FC = () => {
               {documentReady ? '文档已就绪' : '等待文档加载...'}
             </span>
           </div>
+          */}
           
           {iframeError ? (
             <div style={{ 
@@ -1207,7 +1213,7 @@ const EditorPanel: React.FC = () => {
         </span>
       ),
       children: (
-        <div style={{ height: 'calc(100vh - 72px)', padding: '8px' }}>
+        <div style={{ height: 'calc(100vh - 48px)', padding: '8px' }}>
           <CADViewer />
         </div>
       ),

@@ -39,12 +39,12 @@ html, body {
 }
 
 .ant-layout-header {
-  height: 48px; /* PC端默认48px高度 */
+  height: 24px; /* PC端默认24px高度 */
   background: #f8fafc !important;
   border-bottom: 1px solid #e2e8f0;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   padding: 0 !important; /* 移除默认内边距，由内部容器处理 */
-  min-height: 48px;
+  min-height: 24px;
   display: flex !important;
   align-items: stretch !important; /* 让内部容器拉伸填满 */
 }
@@ -169,4 +169,70 @@ html, body {
 .ant-btn-text:hover {
   color: #475569;
   background: #f1f5f9;
+}
+
+/* Resource Tree 样式优化 */
+.resource-tree .ant-tree-node-content-wrapper {
+  flex: 1 !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  max-width: 100% !important;
+}
+
+.resource-tree .ant-tree-title {
+  flex: 1 !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  max-width: 100% !important;
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+}
+
+.resource-tree .ant-tree-node-content-wrapper.ant-tree-node-selected {
+  background-color: #e6f7ff !important;
+  border-radius: 4px !important;
+}
+
+.resource-tree .ant-tree-node-content-wrapper:hover {
+  background-color: #f0f2f5 !important;
+  border-radius: 4px !important;
+}
+
+/* 确保文件名容器能够正确处理长文件名 */
+.resource-tree .ant-tree-treenode {
+  padding: 2px 0 !important;
+  overflow: hidden !important;
+}
+
+.resource-tree .ant-tree-indent-unit {
+  width: 16px !important;
+}
+
+.resource-tree .ant-tree-switcher {
+  width: 16px !important;
+  height: 20px !important;
+  line-height: 20px !important;
+}
+
+.resource-tree .ant-tree-iconEle {
+  width: 16px !important;
+  height: 20px !important;
+  line-height: 20px !important;
+}
+
+/* 强制限制文件名div的宽度 */
+.resource-tree .ant-tree-title > div {
+  max-width: 100% !important;
+  overflow: hidden !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.resource-tree .ant-tree-title > div > span {
+  flex: 1 !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  max-width: calc(100% - 30px) !important;
 }

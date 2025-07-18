@@ -42,6 +42,14 @@ const ResourcePanel: React.FC = () => {
   // 使用文件选择上下文
   const { setSelectedTemplateFile, setSelectedSharedFile } = useFileSelection()
 
+  // 截断文件名显示
+  const truncateFileName = (fileName: string, maxLength: number = 15): string => {
+    if (fileName.length <= maxLength) {
+      return fileName
+    }
+    return fileName.substring(0, maxLength) + '...'
+  }
+
   // 从服务器加载文件列表
   useEffect(() => {
     loadFilesFromServer()
@@ -134,9 +142,19 @@ const ResourcePanel: React.FC = () => {
         icon: <FolderOutlined />,
         children: templateFiles.map(file => ({
           title: (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {file.title}
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between', 
+              width: '100%'
+            }}>
+              <span 
+                style={{ 
+                  fontSize: '12px'
+                }}
+                title={file.title}
+              >
+                {truncateFileName(file.title)}
               </span>
               <Popconfirm
                 title="确定要删除这个文件吗？"
@@ -151,7 +169,7 @@ const ResourcePanel: React.FC = () => {
                   type="text" 
                   size="small" 
                   icon={<DeleteOutlined />}
-                  style={{ fontSize: '10px', height: '16px', padding: '0 2px', marginLeft: '4px' }}
+                  style={{ fontSize: '10px', height: '16px', padding: '0 2px', marginLeft: '4px', flexShrink: 0 }}
                   onClick={(e) => e.stopPropagation()}
                   title="删除文件"
                 />
@@ -184,9 +202,19 @@ const ResourcePanel: React.FC = () => {
         icon: <FolderOutlined />,
         children: sharedFiles.map(file => ({
           title: (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {file.title}
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between', 
+              width: '100%'
+            }}>
+              <span 
+                style={{ 
+                  fontSize: '12px'
+                }}
+                title={file.title}
+              >
+                {truncateFileName(file.title)}
               </span>
               <Popconfirm
                 title="确定要删除这个文件吗？"
@@ -201,7 +229,7 @@ const ResourcePanel: React.FC = () => {
                   type="text" 
                   size="small" 
                   icon={<DeleteOutlined />}
-                  style={{ fontSize: '10px', height: '16px', padding: '0 2px', marginLeft: '4px' }}
+                  style={{ fontSize: '10px', height: '16px', padding: '0 2px', marginLeft: '4px', flexShrink: 0 }}
                   onClick={(e) => e.stopPropagation()}
                   title="删除文件"
                 />
@@ -394,6 +422,7 @@ const ResourcePanel: React.FC = () => {
           style={{
             background: 'transparent',
           }}
+          className="resource-tree"
         />
       </div>
 

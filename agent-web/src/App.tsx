@@ -365,8 +365,8 @@ function App() {
           <Header style={{ 
             background: '#f8fafc', 
             padding: '0', // 移除所有内边距，让内部容器处理布局
-            height: screenWidth <= 1024 ? `calc(52px + env(safe-area-inset-top, 0px))` : '48px', // 总高度包含安全区域
-            minHeight: screenWidth <= 1024 ? `calc(52px + env(safe-area-inset-top, 0px))` : '48px',
+            height: screenWidth <= 1024 ? `calc(28px + env(safe-area-inset-top, 0px))` : '24px', // 总高度包含安全区域
+            minHeight: screenWidth <= 1024 ? `calc(28px + env(safe-area-inset-top, 0px))` : '24px',
             borderBottom: '1px solid #e2e8f0',
             position: 'relative',
             boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
@@ -392,15 +392,15 @@ function App() {
                 icon={leftSiderCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
                 onClick={toggleLeftSider}
                 style={{ 
-                  fontSize: screenWidth <= 1024 ? '16px' : '14px', 
-                  height: screenWidth <= 1024 ? '36px' : '32px', 
-                  padding: screenWidth <= 1024 ? '0 12px' : '0 8px',
-                  minWidth: screenWidth <= 1024 ? '36px' : 'auto',
+                  fontSize: screenWidth <= 1024 ? '14px' : '12px', 
+                  height: screenWidth <= 1024 ? '22px' : '20px', 
+                  padding: screenWidth <= 1024 ? '0 8px' : '0 6px',
+                  minWidth: screenWidth <= 1024 ? '22px' : 'auto',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center'
                 }}
-                size={screenWidth <= 1024 ? 'middle' : 'small'}
+                size="small"
                 title={leftSiderCollapsed ? '展开资源面板' : '收起资源面板'}
               />
               
@@ -413,15 +413,15 @@ function App() {
                 icon={<SettingOutlined />} 
                 onClick={showSettingsModal}
                 style={{ 
-                  fontSize: screenWidth <= 1024 ? '16px' : '14px', 
-                  height: screenWidth <= 1024 ? '36px' : '32px', 
-                  padding: screenWidth <= 1024 ? '0 12px' : '0 8px',
-                  minWidth: screenWidth <= 1024 ? '60px' : 'auto',
+                  fontSize: screenWidth <= 1024 ? '14px' : '12px', 
+                  height: screenWidth <= 1024 ? '22px' : '20px', 
+                  padding: screenWidth <= 1024 ? '0 8px' : '0 6px',
+                  minWidth: screenWidth <= 1024 ? '50px' : 'auto',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center'
                 }}
-                size={screenWidth <= 1024 ? 'middle' : 'small'}
+                size="small"
               >
                 设置
               </Button>
@@ -432,7 +432,7 @@ function App() {
           <Layout>
             {/* 左栏 - 资源区 */}
             <Sider 
-              width={200}
+              width={310}
               collapsedWidth={0}
               collapsed={leftSiderCollapsed}
               trigger={null}
