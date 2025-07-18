@@ -3,6 +3,7 @@ import { Tabs, Alert, Button, message, Badge } from 'antd'
 import { BarChartOutlined, FileTextOutlined, ReloadOutlined, WifiOutlined, SketchOutlined } from '@ant-design/icons'
 import { useAgentContext } from '../App'
 import CADViewer from './CADViewer'
+import VisualAnalysisPanel from './VisualAnalysisPanel'
 
 const EditorPanel: React.FC = () => {
   const { agentId, agentInitialized } = useAgentContext()
@@ -987,21 +988,8 @@ const EditorPanel: React.FC = () => {
         </span>
       ),
       children: (
-        <div style={{ 
-          padding: '24px', 
-          height: 'calc(100vh - 96px)', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          background: '#fafafa',
-          border: '2px dashed #d9d9d9',
-          borderRadius: '8px'
-        }}>
-          <div style={{ textAlign: 'center', color: '#8c8c8c' }}>
-            <BarChartOutlined style={{ fontSize: '48px', marginBottom: '16px' }} />
-            <h2 style={{ color: '#1677ff', marginBottom: '8px' }}>可视化分析功能区</h2>
-            <p>功能开发中，敬请期待...</p>
-          </div>
+        <div style={{ height: 'calc(100vh - 48px)' }}>
+          <VisualAnalysisPanel />
         </div>
       ),
     },
