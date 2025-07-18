@@ -11,7 +11,7 @@ interface ModelConfig extends LLMConfig {
   name: string
 }
 
-const { Header, Content, Sider } = Layout
+const { Content, Sider } = Layout
 const { Option } = Select
 
 // 默认的模型配置
@@ -145,6 +145,38 @@ function App() {
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [leftSiderCollapsed])
+
+  // 组件加载时自动滚动到页面顶部
+  useEffect(() => {
+    const scrollToTop = () => {
+      // 确保页面滚动到顶部
+      window.scrollTo(0, 0)
+      document.documentElement.scrollTop = 0
+      document.body.scrollTop = 0
+      
+      // 如果有父容器也设置滚动到顶部
+      const rootElement = document.getElementById('root')
+      if (rootElement) {
+        rootElement.scrollTop = 0
+      }
+      
+      // 重置所有可能的滚动容器
+      const layoutElements = document.querySelectorAll('.ant-layout, .app-root')
+      layoutElements.forEach(element => {
+        if (element instanceof HTMLElement) {
+          element.scrollTop = 0
+        }
+      })
+    }
+    
+    // 立即执行
+    scrollToTop()
+    
+    // 延迟执行，确保DOM完全加载后也滚动到顶部
+    const timer = setTimeout(scrollToTop, 100)
+    
+    return () => clearTimeout(timer)
+  }, [])
 
   // 监听快捷键 Ctrl+1 或 Command+1 来切换资源面板
   useEffect(() => {
@@ -355,25 +387,29 @@ function App() {
             <Layout
               className="app-root"
               style={{
-                height: '100%',          // 占满 #root 剩余空间
-                // minHeight: '100vh',      // 至少视口高
+                height: '100vh',         // 填充整个视口高度
+                position: 'relative',    // 为顶部工具条提供定位基准
               }}
             >
 
-
-          {/* 顶部 Header */}
-          <Header style={{ 
-            background: '#f8fafc', 
-            padding: '0', // 移除所有内边距，让内部容器处理布局
-            height: screenWidth <= 1024 ? `calc(28px + env(safe-area-inset-top, 0px))` : '24px', // 总高度包含安全区域
-            minHeight: screenWidth <= 1024 ? `calc(28px + env(safe-area-inset-top, 0px))` : '24px',
-            borderBottom: '1px solid #e2e8f0',
-            position: 'relative',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-            zIndex: 1000, // 确保Header在最上层
-            display: 'flex',
-            alignItems: 'stretch' // 让内部容器拉伸填满
-          }}>
+          {/* 顶部工具条 - 替代原来的 Header */}
+          <div
+            className="top-toolbar"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: screenWidth <= 1024 ? `calc(28px + env(safe-area-inset-top, 0px))` : '24px',
+              minHeight: screenWidth <= 1024 ? `calc(28px + env(safe-area-inset-top, 0px))` : '24px',
+              background: '#f8fafc',
+              borderBottom: '1px solid #e2e8f0',
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+              zIndex: 1000,
+              display: 'flex',
+              alignItems: 'stretch'
+            }}
+          >
             {/* 内容容器 - 处理安全区域和内容居中 */}
             <div style={{
               width: '100%',
@@ -426,10 +462,13 @@ function App() {
                 设置
               </Button>
             </div>
-          </Header>
+          </div>
 
           {/* 主体部分 - 三栏布局 */}
-          <Layout>
+          <Layout style={{
+            height: screenWidth <= 1024 ? `calc(100% - 28px - env(safe-area-inset-top, 0px))` : 'calc(100% - 24px)', // 减去顶部工具条高度
+            marginTop: screenWidth <= 1024 ? `calc(28px + env(safe-area-inset-top, 0px))` : '24px' // 顶部工具条高度的偏移
+          }}>
             {/* 左栏 - 资源区 */}
             <Sider 
               width={310}
@@ -514,7 +553,7 @@ function App() {
                   }} />
                 )}
               </div>
-              <div style={{ flex: 1, marginLeft: '4px' }}>
+              <div style={{ flex: 1, marginLeft: '4px', height: '100%', overflow: 'hidden' }}>
                 <InteractionPanel />
               </div>
             </div>

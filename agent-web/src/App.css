@@ -21,14 +21,11 @@ html, body {
 
 #root {
   width: 100%;
-  /* height: auto;          不锁死视口高度 */
-  /* min-height: 100vh;     至少与视口等高 */
-  overflow-x: hidden;    /* 防止横向滚动条 */
-  overflow-y: auto;      /* 允许向上/下滚动，顶部不再被裁掉 */
+  height: 100vh;        /* 锁定视口高度 */
+  overflow: hidden;     /* 防止整个页面滚动 */
   min-width: 320px;
   min-height: 0;
   margin-top: var(--top-offset, 0px);
-  height: calc(100vh - var(--top-offset, 0px));
 }
 
 /* iOS Safari特殊处理 */
@@ -38,15 +35,11 @@ html, body {
   }
 }
 
-.ant-layout-header {
-  height: 24px; /* PC端默认24px高度 */
+/* 顶部工具条样式 */
+.top-toolbar {
   background: #f8fafc !important;
   border-bottom: 1px solid #e2e8f0;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  padding: 0 !important; /* 移除默认内边距，由内部容器处理 */
-  min-height: 24px;
-  display: flex !important;
-  align-items: stretch !important; /* 让内部容器拉伸填满 */
 }
 
 .ant-layout-sider {

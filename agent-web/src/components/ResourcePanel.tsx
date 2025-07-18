@@ -394,7 +394,7 @@ const ResourcePanel: React.FC = () => {
   })
 
   return (
-    <div style={{ padding: '8px 16px 16px 16px', height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ padding: '8px 16px 16px 16px', height: '100%', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
         <Title level={5} style={{ margin: 0, color: '#2c3e50', fontSize: '12px' }}>
           资源

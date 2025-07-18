@@ -834,7 +834,8 @@ const InteractionPanel: React.FC = () => {
       display: 'flex', 
       flexDirection: 'column', 
       height: '100%', 
-      padding: '8px 16px 16px 16px' 
+      padding: '8px 16px 16px 16px',
+      boxSizing: 'border-box' // 让padding包含在height内
     }}>
       {/* 标题 */}
       <Title level={5} style={{ marginBottom: '16px', color: '#2c3e50', fontSize: '12px', marginTop: '0' }}>
