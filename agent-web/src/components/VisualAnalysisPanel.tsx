@@ -1,471 +1,257 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { Card, Button, Select, message, Divider, Spin, Tabs } from 'antd'
-import { CopyOutlined, ReloadOutlined, BarChartOutlined, CodeOutlined, Html5Outlined, FileTextOutlined } from '@ant-design/icons'
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import * as echarts from 'echarts'
-import { defaultSampleCode, allSamples, CodeSample } from './visualSamples'
-
-const { Option } = Select
-
-interface VisualAnalysisPanelProps {
-  codeString?: string
-  onCodeExecute?: (code: string) => void
-}
+import React, { useState } from 'react'
+import { Tabs, message } from 'antd'
+import { FileTextOutlined, PlayCircleOutlined } from '@ant-design/icons'
+import type { TabsProps } from 'antd'
+import { 
+  VisualAnalysisPanelProps, 
+  ContentBlock, 
+  RenderableCode 
+} from './visual/types'
+import AnalysisView from './visual/AnalysisView'
+import RenderView from './visual/RenderView'
 
 const VisualAnalysisPanel: React.FC<VisualAnalysisPanelProps> = ({
-  codeString,
-  onCodeExecute
+  contentBlocks = [],
+  onContentUpdate,
+  onCodeRender,
+  className,
+  style
 }) => {
-  const [currentSample, setCurrentSample] = useState<CodeSample>(defaultSampleCode)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [selectedSample, setSelectedSample] = useState<string>('multiLine')
-  const [activeCodeTab, setActiveCodeTab] = useState<string>('javascript')
-  const chartRef = useRef<HTMLDivElement>(null)
-  const chartInstanceRef = useRef<echarts.ECharts | null>(null)
+  // 状态管理
+  const [activeTab, setActiveTab] = useState<string>('analysis')
+  const [currentRenderCode, setCurrentRenderCode] = useState<RenderableCode | undefined>()
+  const [renderLoading, setRenderLoading] = useState(false)
+  const [renderError, setRenderError] = useState<string | undefined>()
   const [messageApi, contextHolder] = message.useMessage()
 
-  // 初始化图表
-  useEffect(() => {
-    if (chartRef.current) {
-      // 销毁之前的图表实例
-      if (chartInstanceRef.current) {
-        chartInstanceRef.current.dispose()
-      }
-      
-      // 创建新的图表实例
-      chartInstanceRef.current = echarts.init(chartRef.current)
-      
-      // 执行代码
-      executeCode(currentSample.javascript)
-    }
-
-    // 清理函数
-    return () => {
-      if (chartInstanceRef.current) {
-        chartInstanceRef.current.dispose()
-      }
-    }
-  }, [])
-
-  // 当代码改变时重新执行
-  useEffect(() => {
-    if (chartInstanceRef.current) {
-      executeCode(currentSample.javascript)
-    }
-  }, [currentSample])
-
-  // 执行代码
-  const executeCode = async (code: string) => {
-    if (!chartInstanceRef.current) return
-
-    setLoading(true)
-    setError(null)
-
+  // 处理从分析页面接收到的渲染请求
+  const handleRenderCode = async (blockId: string, code: RenderableCode) => {
     try {
-      // 清空图表
-      chartInstanceRef.current.clear()
+      setRenderLoading(true)
+      setRenderError(undefined)
       
-      // 创建安全的执行环境
-      const executeFunction = new Function(
-        'chartInstance', 
-        'echarts', 
-        code
-      )
+      setCurrentRenderCode(code)
+      setActiveTab('render')
       
-      // 执行代码
-      await executeFunction(chartInstanceRef.current, echarts)
-      
-      // 触发回调
-      if (onCodeExecute) {
-        onCodeExecute(code)
+      if (onCodeRender) {
+        onCodeRender(code)
       }
       
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '代码执行出错'
-      setError(errorMessage)
-      console.error('代码执行错误:', err)
-      messageApi.error(`代码执行失败: ${errorMessage}`)
+      messageApi.success('代码已发送到渲染页面')
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '渲染失败'
+      setRenderError(errorMessage)
+      messageApi.error(`渲染失败: ${errorMessage}`)
     } finally {
-      setLoading(false)
+      setRenderLoading(false)
     }
   }
 
-  // 复制代码到剪贴板
-  const copyCode = async (codeType: string) => {
+  // 处理代码复制
+  const handleCopyCode = async (blockId: string, content: string) => {
     try {
-      let codeToCopy = ''
-      switch (codeType) {
-        case 'html':
-          codeToCopy = currentSample.html || ''
-          break
-        case 'css':
-          codeToCopy = currentSample.css || ''
-          break
-        case 'javascript':
-          codeToCopy = currentSample.javascript
-          break
-        default:
-          codeToCopy = currentSample.javascript
-      }
-      
-      await navigator.clipboard.writeText(codeToCopy)
-      messageApi.success(`${codeType.toUpperCase()} 代码已复制到剪贴板`)
-    } catch (err) {
-      messageApi.error('复制失败')
+      await navigator.clipboard.writeText(content)
+      messageApi.success('代码已复制到剪贴板')
+    } catch (error) {
+      messageApi.error('复制失败，请手动复制')
     }
   }
 
-  // 重新执行代码
-  const reloadChart = () => {
-    executeCode(currentSample.javascript)
+  // 处理渲染页面的错误
+  const handleRenderError = (error: string) => {
+    setRenderError(error)
+    messageApi.error(`渲染错误: ${error}`)
   }
 
-  // 切换示例
-  const handleSampleChange = (value: string) => {
-    setSelectedSample(value)
-    const sample = allSamples[value as keyof typeof allSamples]
-    if (sample) {
-      setCurrentSample(sample)
-    }
+  // 处理渲染页面加载完成
+  const handleRenderLoad = () => {
+    setRenderLoading(false)
+    setRenderError(undefined)
   }
 
-  // 窗口大小变化时调整图表
-  useEffect(() => {
-    const handleResize = () => {
-      if (chartInstanceRef.current) {
-        chartInstanceRef.current.resize()
-      }
+  // 创建示例数据（开发阶段使用）
+  const getSampleContentBlocks = (): ContentBlock[] => {
+    if (contentBlocks.length > 0) {
+      return contentBlocks
     }
 
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
+    return [
+      {
+        id: 'sample-text-1',
+        type: 'text',
+        content: '欢迎使用可视化分析功能！这里可以显示来自后台的文字内容和代码块。下面是一些示例代码：',
+        timestamp: Date.now()
+      },
+      {
+        id: 'sample-code-1',
+        type: 'code',
+        language: 'javascript',
+        content: `// 创建一个简单的3D立方体
+const container = document.getElementById('main');
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer();
 
-  // 创建代码Tab项
-  const createCodeTabs = () => {
-    const tabs = []
+renderer.setSize(container.clientWidth, container.clientHeight);
+container.appendChild(renderer.domElement);
+
+const geometry = new THREE.BoxGeometry();
+const material = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
+const cube = new THREE.Mesh(geometry, material);
+
+scene.add(cube);
+camera.position.z = 5;
+
+function animate() {
+    requestAnimationFrame(animate);
+    cube.rotation.x += 0.01;
+    cube.rotation.y += 0.01;
+    renderer.render(scene, camera);
+}
+
+animate();`,
+        timestamp: Date.now(),
+        metadata: {
+          title: 'Three.js 旋转立方体',
+          description: '使用Three.js创建一个旋转的绿色立方体'
+        }
+      },
+      {
+        id: 'sample-text-2',
+        type: 'text',
+        content: '上面的代码展示了如何使用Three.js创建3D图形。您可以点击代码块右上角的"渲染"按钮在右侧标签页中查看效果。',
+        timestamp: Date.now()
+      },
+      {
+        id: 'sample-code-2',
+        type: 'code',
+        language: 'html',
+        content: `<div id="chart" style="width: 100%; height: 400px;"></div>
     
-    // JavaScript Tab (必有)
-    tabs.push({
-      key: 'javascript',
+<script>
+    const chart = echarts.init(document.getElementById('chart'));
+    
+    const option = {
+        title: { text: '销售数据分析' },
+        tooltip: { trigger: 'axis' },
+        legend: { data: ['销售额', '利润'] },
+        xAxis: {
+            type: 'category',
+            data: ['1月', '2月', '3月', '4月', '5月', '6月']
+        },
+        yAxis: { type: 'value' },
+        series: [
+            {
+                name: '销售额',
+                type: 'line',
+                data: [120, 132, 101, 134, 90, 230]
+            },
+            {
+                name: '利润',
+                type: 'bar',
+                data: [20, 32, 21, 34, 30, 80]
+            }
+        ]
+    };
+    
+    chart.setOption(option);
+</script>`,
+        timestamp: Date.now(),
+        metadata: {
+          title: 'ECharts 混合图表',
+          description: '展示销售数据的折线图和柱状图组合'
+        }
+      }
+    ]
+  }
+
+  const tabItems: TabsProps['items'] = [
+    {
+      key: 'analysis',
       label: (
         <span>
-          <CodeOutlined />
-          JavaScript
+          <FileTextOutlined />
+          分析与代码
         </span>
       ),
-              children: (
-          <div style={{ 
-            position: 'relative',
-            height: '100%',
-            overflow: 'auto'
-          }}>
-            <Button
-              type="text"
-              icon={<CopyOutlined />}
-              onClick={() => copyCode('javascript')}
-              size="small"
-              style={{
-                position: 'absolute',
-                top: '8px',
-                right: '8px',
-                zIndex: 10,
-                background: 'rgba(255, 255, 255, 0.9)',
-                border: '1px solid #d9d9d9'
-              }}
-              title="复制JavaScript代码"
-            >
-              复制
-            </Button>
-            <SyntaxHighlighter
-              language="javascript"
-              style={tomorrow}
-              showLineNumbers
-              wrapLines
-              customStyle={{
-                margin: 0,
-                fontSize: '12px',
-                lineHeight: '1.4',
-                background: '#fafafa',
-                paddingTop: '40px',
-                minHeight: '100%',
-                overflow: 'auto'
-              }}
-            >
-              {currentSample.javascript}
-            </SyntaxHighlighter>
-          </div>
-        )
-    })
-
-    // HTML Tab (如果有HTML代码)
-    if (currentSample.html) {
-      tabs.push({
-        key: 'html',
-        label: (
-          <span>
-            <Html5Outlined />
-            HTML
-          </span>
-        ),
-        children: (
-          <div style={{ 
-            position: 'relative',
-            height: '100%',
-            overflow: 'auto'
-          }}>
-            <Button
-              type="text"
-              icon={<CopyOutlined />}
-              onClick={() => copyCode('html')}
-              size="small"
-              style={{
-                position: 'absolute',
-                top: '8px',
-                right: '8px',
-                zIndex: 10,
-                background: 'rgba(255, 255, 255, 0.9)',
-                border: '1px solid #d9d9d9'
-              }}
-              title="复制HTML代码"
-            >
-              复制
-            </Button>
-            <SyntaxHighlighter
-              language="html"
-              style={tomorrow}
-              showLineNumbers
-              wrapLines
-              customStyle={{
-                margin: 0,
-                fontSize: '12px',
-                lineHeight: '1.4',
-                background: '#fafafa',
-                paddingTop: '40px',
-                minHeight: '100%',
-                overflow: 'auto'
-              }}
-            >
-              {currentSample.html}
-            </SyntaxHighlighter>
-          </div>
-        )
-      })
+      children: (
+        <AnalysisView
+          contentBlocks={getSampleContentBlocks()}
+          onRenderCode={handleRenderCode}
+          onCopyCode={handleCopyCode}
+        />
+      )
+    },
+    {
+      key: 'render',
+      label: (
+        <span>
+          <PlayCircleOutlined />
+          渲染与交互
+        </span>
+      ),
+      children: (
+        <RenderView
+          code={currentRenderCode}
+          loading={renderLoading}
+          error={renderError}
+          onError={handleRenderError}
+          onLoad={handleRenderLoad}
+        />
+      )
     }
-
-    // CSS Tab (如果有CSS代码)
-    if (currentSample.css) {
-      tabs.push({
-        key: 'css',
-        label: (
-          <span>
-            <FileTextOutlined />
-            CSS
-          </span>
-        ),
-        children: (
-          <div style={{ 
-            position: 'relative',
-            height: '100%',
-            overflow: 'auto'
-          }}>
-            <Button
-              type="text"
-              icon={<CopyOutlined />}
-              onClick={() => copyCode('css')}
-              size="small"
-              style={{
-                position: 'absolute',
-                top: '8px',
-                right: '8px',
-                zIndex: 10,
-                background: 'rgba(255, 255, 255, 0.9)',
-                border: '1px solid #d9d9d9'
-              }}
-              title="复制CSS代码"
-            >
-              复制
-            </Button>
-            <SyntaxHighlighter
-              language="css"
-              style={tomorrow}
-              showLineNumbers
-              wrapLines
-              customStyle={{
-                margin: 0,
-                fontSize: '12px',
-                lineHeight: '1.4',
-                background: '#fafafa',
-                paddingTop: '40px',
-                minHeight: '100%',
-                overflow: 'auto'
-              }}
-            >
-              {currentSample.css}
-            </SyntaxHighlighter>
-          </div>
-        )
-      })
-    }
-
-    return tabs
-  }
+  ]
 
   return (
     <>
       {contextHolder}
       <style>
         {`
+          .visual-analysis-container {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            background: #fafafa;
+          }
+          .visual-analysis-tabs .ant-tabs-nav {
+            margin: 0 16px !important;
+            padding-top: 8px;
+            background: #fafafa;
+          }
           .visual-analysis-tabs .ant-tabs-content-holder {
             flex: 1;
-            overflow: auto;
+            overflow: hidden; /* Important: parent must hide overflow */
+            margin: 0 16px 16px;
+            border: 1px solid #f0f0f0;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            background: #fff;
           }
           .visual-analysis-tabs .ant-tabs-tabpane {
             height: 100%;
-            overflow: auto;
+            overflow-y: auto; /* Child pane handles scrolling */
+            padding: 16px;
           }
         `}
       </style>
-      <div style={{ 
-        height: '100%', 
-        display: 'flex', 
-        flexDirection: 'column',
-        padding: '16px',
-        background: '#fafafa'
-      }}>
-        
-        {/* 工具栏 */}
-        <div style={{ 
-          marginBottom: '16px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <BarChartOutlined style={{ fontSize: '16px', color: '#1677ff' }} />
-            <span style={{ fontSize: '14px', fontWeight: 'bold' }}>可视化分析</span>
-            <Select
-              value={selectedSample}
-              onChange={handleSampleChange}
-              style={{ width: 120 }}
-              size="small"
-            >
-              {Object.entries(allSamples).map(([key, sample]) => (
-                <Option key={key} value={key}>{sample.name}</Option>
-              ))}
-            </Select>
-          </div>
-          
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <Button
-              type="text"
-              icon={<ReloadOutlined />}
-              onClick={reloadChart}
-              size="small"
-              title="重新执行代码"
-            >
-              刷新
-            </Button>
-          </div>
-        </div>
-
-        {/* 渲染区域 */}
-        <Card
-          title={
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span>图表渲染区</span>
-              {currentSample.description && (
-                <span style={{ 
-                  fontSize: '12px', 
-                  color: '#666',
-                  fontWeight: 'normal'
-                }}>
-                  - {currentSample.description}
-                </span>
-              )}
-            </div>
-          }
+      <div 
+        className={`visual-analysis-container ${className || ''}`}
+        style={style}
+      >
+        <Tabs
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          items={tabItems}
           size="small"
+          className="visual-analysis-tabs"
           style={{ 
-            flex: '1 1 60%',
-            marginBottom: '16px',
-            minHeight: '300px'
-          }}
-          bodyStyle={{ 
-            padding: '12px',
-            height: 'calc(100% - 57px)',
-            position: 'relative'
-          }}
-        >
-          <Spin spinning={loading} tip="正在渲染图表...">
-            <div
-              ref={chartRef}
-              style={{
-                width: '100%',
-                height: '100%',
-                minHeight: '250px',
-                background: '#fff',
-                borderRadius: '6px'
-              }}
-            />
-          </Spin>
-          
-          {error && (
-            <div style={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              textAlign: 'center',
-              color: '#ff4d4f',
-              background: '#fff2f0',
-              padding: '20px',
-              borderRadius: '8px',
-              border: '1px solid #ffccc7'
-            }}>
-              <div style={{ fontSize: '16px', marginBottom: '8px' }}>⚠️ 代码执行错误</div>
-              <div style={{ fontSize: '12px', color: '#666' }}>{error}</div>
-            </div>
-          )}
-        </Card>
-
-        {/* 代码显示区域 */}
-        <Card
-          title="代码查看器"
-          size="small"
-          style={{ 
-            flex: '1 1 40%',
-            maxHeight: '400px',
+            flex: 1,
             display: 'flex',
             flexDirection: 'column'
           }}
-          bodyStyle={{ 
-            padding: '0',
-            height: 'calc(100% - 57px)',
-            overflow: 'hidden',
-            flex: 1
-          }}
-        >
-          <Tabs
-            activeKey={activeCodeTab}
-            onChange={setActiveCodeTab}
-            items={createCodeTabs()}
-            size="small"
-            className="visual-analysis-tabs"
-            style={{ 
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column'
-            }}
-            tabBarStyle={{ 
-              margin: '0 16px',
-              paddingTop: '8px',
-              flex: 'none'
-            }}
-          />
-        </Card>
+          tabBarStyle={{ flex: 'none' }}
+        />
       </div>
     </>
   )
