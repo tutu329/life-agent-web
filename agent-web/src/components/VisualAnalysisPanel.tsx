@@ -219,18 +219,30 @@ animate();`,
             padding-top: 8px;
             background: #fafafa;
           }
+          .visual-analysis-tabs {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+          }
+          /* AntD Tabs 内容区高度撑满，供子 TabPane 使用 */
           .visual-analysis-tabs .ant-tabs-content-holder {
             flex: 1;
-            overflow: hidden; /* Important: parent must hide overflow */
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* parent 隐藏 */
             margin: 0 16px 16px;
             border: 1px solid #f0f0f0;
             border-top: none;
             border-radius: 0 0 8px 8px;
             background: #fff;
           }
+          .visual-analysis-tabs .ant-tabs-content {
+            flex: 1;
+            height: 100%;
+          }
           .visual-analysis-tabs .ant-tabs-tabpane {
             height: 100%;
-            overflow-y: auto; /* Child pane handles scrolling */
+            overflow-y: auto; /* 独立滚动 */
             padding: 16px;
           }
         `}
