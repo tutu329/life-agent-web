@@ -87,40 +87,350 @@ const VisualAnalysisPanel: React.FC<VisualAnalysisPanelProps> = ({
         id: 'sample-code-1',
         type: 'code',
         language: 'javascript',
-        content: `// 创建一个简单的3D立方体
+        content: `// 创建一个可交互的3D地球仪
 const container = document.getElementById('main');
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer();
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 
+// 渲染器设置
 renderer.setSize(container.clientWidth, container.clientHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 container.appendChild(renderer.domElement);
 
-const geometry = new THREE.BoxGeometry();
-const material = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
-const cube = new THREE.Mesh(geometry, material);
+// 场景背景 - 星空
+scene.background = new THREE.Color(0x000011);
 
-scene.add(cube);
-camera.position.z = 5;
+// 创建地球几何体
+const earthGeometry = new THREE.SphereGeometry(2, 64, 64);
 
+// 创建地球材质
+const earthMaterial = new THREE.MeshPhongMaterial({
+  map: createEarthTexture(),
+  bumpMap: createBumpTexture(),
+  bumpScale: 0.1,
+  specularMap: createSpecularTexture(),
+  shininess: 30
+});
+
+const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+earth.castShadow = true;
+earth.receiveShadow = true;
+scene.add(earth);
+
+// 创建大气层
+const atmosphereGeometry = new THREE.SphereGeometry(2.1, 64, 64);
+const atmosphereMaterial = new THREE.MeshBasicMaterial({
+  color: 0x87CEEB,
+  transparent: true,
+  opacity: 0.2,
+  side: THREE.BackSide
+});
+const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
+scene.add(atmosphere);
+
+// 添加云层
+const cloudGeometry = new THREE.SphereGeometry(2.02, 64, 64);
+const cloudMaterial = new THREE.MeshLambertMaterial({
+  map: createCloudTexture(),
+  transparent: true,
+  opacity: 0.8
+});
+const clouds = new THREE.Mesh(cloudGeometry, cloudMaterial);
+scene.add(clouds);
+
+// 添加光源
+const sunLight = new THREE.DirectionalLight(0xffffff, 1);
+sunLight.position.set(5, 3, 5);
+sunLight.castShadow = true;
+sunLight.shadow.mapSize.width = 2048;
+sunLight.shadow.mapSize.height = 2048;
+scene.add(sunLight);
+
+const ambientLight = new THREE.AmbientLight(0x404040, 0.2);
+scene.add(ambientLight);
+
+// 创建星空背景
+createStarField();
+
+camera.position.z = 6;
+
+// 渲染参数控制
+const controls = {
+  earthRotationSpeed: 0.005,
+  cloudRotationSpeed: 0.003,
+  showClouds: true,
+  showAtmosphere: true,
+  lightIntensity: 1.0,
+  autoRotate: true
+};
+
+// 创建控制面板
+createControlPanel();
+
+// 动画循环
 function animate() {
-    requestAnimationFrame(animate);
-    cube.rotation.x += 0.01;
-    cube.rotation.y += 0.01;
-    renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+  
+  if (controls.autoRotate) {
+    earth.rotation.y += controls.earthRotationSpeed;
+    if (controls.showClouds) {
+      clouds.rotation.y += controls.cloudRotationSpeed;
+    }
+  }
+  
+  renderer.render(scene, camera);
 }
+
+// 创建地球纹理
+function createEarthTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  
+  // 绘制海洋背景
+  ctx.fillStyle = '#1e3a8a';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  // 绘制大陆
+  const continents = [
+    // 亚洲
+    { x: 350, y: 80, w: 120, h: 80 },
+    // 欧洲
+    { x: 280, y: 70, w: 60, h: 50 },
+    // 非洲
+    { x: 260, y: 100, w: 80, h: 120 },
+    // 北美洲
+    { x: 80, y: 60, w: 100, h: 100 },
+    // 南美洲
+    { x: 120, y: 140, w: 60, h: 100 },
+    // 澳洲
+    { x: 400, y: 180, w: 80, h: 40 }
+  ];
+  
+  ctx.fillStyle = '#22c55e';
+  continents.forEach(continent => {
+    ctx.fillRect(continent.x, continent.y, continent.w, continent.h);
+  });
+  
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  return texture;
+}
+
+// 创建凹凸贴图
+function createBumpTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  
+  // 生成随机噪声作为凹凸效果
+  const imageData = ctx.createImageData(canvas.width, canvas.height);
+  for (let i = 0; i < imageData.data.length; i += 4) {
+    const value = Math.random() * 255;
+    imageData.data[i] = value;
+    imageData.data[i + 1] = value;
+    imageData.data[i + 2] = value;
+    imageData.data[i + 3] = 255;
+  }
+  ctx.putImageData(imageData, 0, 0);
+  
+  return new THREE.CanvasTexture(canvas);
+}
+
+// 创建高光贴图
+function createSpecularTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  
+  // 海洋区域高反射，陆地低反射
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  ctx.fillStyle = '#333333';
+  const continents = [
+    { x: 350, y: 80, w: 120, h: 80 },
+    { x: 280, y: 70, w: 60, h: 50 },
+    { x: 260, y: 100, w: 80, h: 120 },
+    { x: 80, y: 60, w: 100, h: 100 },
+    { x: 120, y: 140, w: 60, h: 100 },
+    { x: 400, y: 180, w: 80, h: 40 }
+  ];
+  
+  continents.forEach(continent => {
+    ctx.fillRect(continent.x, continent.y, continent.w, continent.h);
+  });
+  
+  return new THREE.CanvasTexture(canvas);
+}
+
+// 创建云层纹理
+function createCloudTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  
+  // 透明背景
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  // 绘制云朵
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+  for (let i = 0; i < 30; i++) {
+    const x = Math.random() * canvas.width;
+    const y = Math.random() * canvas.height;
+    const radius = Math.random() * 20 + 10;
+    
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
+  return new THREE.CanvasTexture(canvas);
+}
+
+// 创建星空
+function createStarField() {
+  const starsGeometry = new THREE.BufferGeometry();
+  const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 2 });
+  
+  const starsVertices = [];
+  for (let i = 0; i < 10000; i++) {
+    const x = (Math.random() - 0.5) * 2000;
+    const y = (Math.random() - 0.5) * 2000;
+    const z = (Math.random() - 0.5) * 2000;
+    starsVertices.push(x, y, z);
+  }
+  
+  starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starsVertices, 3));
+  const stars = new THREE.Points(starsGeometry, starsMaterial);
+  scene.add(stars);
+}
+
+// 创建控制面板
+function createControlPanel() {
+  const panel = document.createElement('div');
+  panel.style.cssText = \`
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(0,0,0,0.8);
+    color: white;
+    padding: 15px;
+    border-radius: 8px;
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    min-width: 200px;
+  \`;
+  
+  panel.innerHTML = \`
+    <h4 style="margin: 0 0 10px 0;">地球仪控制</h4>
+    
+    <label>地球自转速度:</label>
+    <input type="range" id="earthSpeed" min="0" max="0.02" step="0.001" value="0.005" style="width: 100%">
+    
+    <label>云层速度:</label>
+    <input type="range" id="cloudSpeed" min="0" max="0.01" step="0.001" value="0.003" style="width: 100%">
+    
+    <label>光照强度:</label>
+    <input type="range" id="lightIntensity" min="0.1" max="2" step="0.1" value="1" style="width: 100%">
+    
+    <label><input type="checkbox" id="showClouds" checked> 显示云层</label><br>
+    <label><input type="checkbox" id="showAtmosphere" checked> 显示大气层</label><br>
+    <label><input type="checkbox" id="autoRotate" checked> 自动旋转</label>
+  \`;
+  
+  container.appendChild(panel);
+  
+  // 绑定控制事件
+  document.getElementById('earthSpeed').addEventListener('input', (e) => {
+    controls.earthRotationSpeed = parseFloat(e.target.value);
+  });
+  
+  document.getElementById('cloudSpeed').addEventListener('input', (e) => {
+    controls.cloudRotationSpeed = parseFloat(e.target.value);
+  });
+  
+  document.getElementById('lightIntensity').addEventListener('input', (e) => {
+    sunLight.intensity = parseFloat(e.target.value);
+  });
+  
+  document.getElementById('showClouds').addEventListener('change', (e) => {
+    controls.showClouds = e.target.checked;
+    clouds.visible = e.target.checked;
+  });
+  
+  document.getElementById('showAtmosphere').addEventListener('change', (e) => {
+    controls.showAtmosphere = e.target.checked;
+    atmosphere.visible = e.target.checked;
+  });
+  
+  document.getElementById('autoRotate').addEventListener('change', (e) => {
+    controls.autoRotate = e.target.checked;
+  });
+}
+
+// 鼠标控制
+let mouseDown = false;
+let mouseX = 0;
+let mouseY = 0;
+
+container.addEventListener('mousedown', (event) => {
+  mouseDown = true;
+  mouseX = event.clientX;
+  mouseY = event.clientY;
+});
+
+container.addEventListener('mouseup', () => {
+  mouseDown = false;
+});
+
+container.addEventListener('mousemove', (event) => {
+  if (!mouseDown) return;
+  
+  const deltaX = event.clientX - mouseX;
+  const deltaY = event.clientY - mouseY;
+  
+  earth.rotation.y += deltaX * 0.01;
+  earth.rotation.x += deltaY * 0.01;
+  clouds.rotation.y += deltaX * 0.01;
+  clouds.rotation.x += deltaY * 0.01;
+  
+  mouseX = event.clientX;
+  mouseY = event.clientY;
+});
+
+// 缩放控制
+container.addEventListener('wheel', (event) => {
+  camera.position.z += event.deltaY * 0.01;
+  camera.position.z = Math.max(3, Math.min(10, camera.position.z));
+});
+
+// 窗口大小调整
+window.addEventListener('resize', () => {
+  camera.aspect = container.clientWidth / container.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(container.clientWidth, container.clientHeight);
+});
 
 animate();`,
         timestamp: Date.now(),
         metadata: {
-          title: 'Three.js 旋转立方体',
-          description: '使用Three.js创建一个旋转的绿色立方体'
+          title: 'Three.js 可交互地球仪',
+          description: '使用Three.js创建一个带有大陆、海洋、云层和大气层的可交互3D地球仪，包含多种渲染参数控制'
         }
       },
       {
         id: 'sample-text-2',
         type: 'text',
-        content: '上面的代码展示了如何使用Three.js创建3D图形。您可以点击代码块右上角的"渲染"按钮在右侧标签页中查看效果。',
+        content: '上面的代码展示了如何使用Three.js创建一个复杂的3D地球仪，包含以下特性：\n\n🌍 **地球表面**：动态生成的大陆和海洋纹理\n☁️ **云层系统**：可控制显示/隐藏的动态云层\n🌌 **大气层**：半透明的大气层效果\n⭐ **星空背景**：随机生成的星空效果\n💡 **光照系统**：可调节的太阳光和环境光\n🎮 **交互控制**：鼠标拖拽旋转、滚轮缩放\n⚙️ **参数面板**：实时调整各种渲染参数\n\n您可以点击代码块右上角的"渲染"按钮在右侧标签页中查看这个可交互的3D地球仪效果。',
         timestamp: Date.now()
       },
       {
