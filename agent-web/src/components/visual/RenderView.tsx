@@ -143,6 +143,23 @@ const RenderView: React.FC<RenderViewProps> = ({
         ...style
       }}
     >
+      {/* 样式修复：确保Spin容器撑满高度 */}
+      <style>{`
+        .render-view-spin-wrapper {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+        }
+        .render-view-spin-wrapper .ant-spin-container {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+        }
+        .render-view-spin-wrapper .ant-spin-container > div {
+          flex: 1;
+        }
+      `}</style>
+      
       {/* 错误提示 */}
       {error && (
         <Alert
@@ -159,7 +176,7 @@ const RenderView: React.FC<RenderViewProps> = ({
       <Spin 
         spinning={loading || isIframeLoading} 
         tip="正在渲染代码..."
-        style={{ flex: 1 }}
+        wrapperClassName="render-view-spin-wrapper"
       >
         <iframe
           ref={iframeRef}
