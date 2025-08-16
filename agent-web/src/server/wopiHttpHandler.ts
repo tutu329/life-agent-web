@@ -26,6 +26,29 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 app.use(express.json())
 app.use(express.raw({ type: 'application/octet-stream', limit: '50mb' }))
 
+// 添加静态文件服务 - 为图片等资源提供访问
+app.use(express.static(path.join(process.cwd(), 'public'), {
+  setHeaders: (res, path) => {
+    // 设置CORS和缓存头
+    res.setHeader('Access-Control-Allow-Origin', '*')
+    res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    
+    // 根据文件类型设置Content-Type
+    if (path.endsWith('.png')) {
+      res.setHeader('Content-Type', 'image/png')
+    } else if (path.endsWith('.jpg') || path.endsWith('.jpeg')) {
+      res.setHeader('Content-Type', 'image/jpeg')
+    } else if (path.endsWith('.gif')) {
+      res.setHeader('Content-Type', 'image/gif')
+    } else if (path.endsWith('.svg')) {
+      res.setHeader('Content-Type', 'image/svg+xml')
+    }
+  }
+}))
+
+console.log(`📁 静态文件目录: ${path.join(process.cwd(), 'public')}`)
+
 // 创建上传目录
 const ensureUploadsDir = () => {
   const uploadsDir = path.join(process.cwd(), 'uploads')

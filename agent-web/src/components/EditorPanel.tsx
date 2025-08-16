@@ -463,29 +463,24 @@ const EditorPanel: React.FC = () => {
         
         // 专门处理Python脚本相关的消息
         if (data.MessageId === 'CallPythonScript-Result') {
-          // console.log('🐍 ------CallPythonScript响应:', data)
+          console.log('🐍 ------CallPythonScript响应:', data)
           
-          // // 检查是否是获取文档内容的响应
-          // if (data.Values && typeof data.Values === 'string' && data.Values.includes('已获取文档内容')) {
-          //   console.log('📄✅ 获取文档内容成功:', data.Values)
-          //   messageApi.success('文档内容获取成功！请查看文档末尾的确认信息')
-          //   setReceivedMessages(prev => [...prev.slice(-9), `📄 ${data.Values}`])
-          // } else if (data.Values && typeof data.Values === 'string' && data.Values.includes('hello() 执行成功')) {
-          //   console.log('🚀✅ hello函数执行成功:', data.Values)
-          //   messageApi.success('Python API调用成功！')
-          //   setReceivedMessages(prev => [...prev.slice(-9), `🚀 ${data.Values}`])
-          // } else {
-          //   // 通用的Python脚本响应处理
-          //   const responseText = typeof data.Values === 'string' ? data.Values : JSON.stringify(data.Values)
-          //   setReceivedMessages(prev => [...prev.slice(-9), `Python响应: ${responseText}`])
+          // 通用的Python脚本响应处理
+          const responseText = typeof data.Values === 'string' ? data.Values : JSON.stringify(data.Values)
+          console.log('🐍 详细响应内容:', responseText)
+          setReceivedMessages(prev => [...prev.slice(-9), `Python响应: ${responseText}`])
             
-          //   // 如果包含ERROR，显示错误消息
-          //   if (responseText.includes('ERROR')) {
-          //     messageApi.error(`Python API执行出错: ${responseText}`)
-          //   } else if (responseText.includes('SUCCESS')) {
-          //     messageApi.info(`Python API执行成功: ${responseText}`)
-          //   }
-          // }
+          // 如果包含ERROR，显示错误消息
+          if (responseText.includes('ERROR')) {
+            console.error('❌ Python API执行出错:', responseText)
+            messageApi.error(`Python API执行出错: ${responseText}`)
+          } else if (responseText.includes('SUCCESS')) {
+            console.log('✅ Python API执行成功:', responseText)
+            messageApi.success(`Python API执行成功: ${responseText}`)
+          } else {
+            console.warn('⚠️ Python API响应未知格式:', responseText)
+            messageApi.info(`Python API响应: ${responseText}`)
+          }
         }
         
         if (data.MessageId === 'Send_UNO_Command_Resp') {
@@ -976,6 +971,203 @@ const EditorPanel: React.FC = () => {
     }
   }
 
+  // 测试表格插入功能
+  const testInsertTable = () => {
+    if (!iframeRef.current) {
+      console.log('❌ iframe未准备好')
+      messageApi.error('文档编辑器未准备好')
+      return
+    }
+
+    console.log('📊 测试表格插入功能 - 插入员工信息表')
+    
+    // 准备测试数据
+    const tableData = [
+      ["姓名", "年龄", "部门", "薪资"],
+      ["张三", "25", "技术部", "15000"],
+      ["李四", "30", "市场部", "12000"],
+      ["王五", "28", "财务部", "11000"]
+    ]
+    
+    // 使用官方正确格式调用insert_table函数
+    const insertTableFormat = {
+      'MessageId': 'CallPythonScript',
+      'SendTime': Date.now(),
+      'ScriptFile': 'office_api.py',
+      'Function': 'insert_table',
+      'Values': {
+        'rows': {'type': 'long', 'value': 4},
+        'columns': {'type': 'long', 'value': 4},
+        'table_title': {'type': 'string', 'value': '测试表格 - 员工信息表'},
+        'cell_data': {'type': 'string', 'value': JSON.stringify(tableData)},
+        'border_style': {'type': 'string', 'value': 'thick'},
+        'header_style': {'type': 'boolean', 'value': true},
+        'font_name': {'type': 'string', 'value': 'SimSun'},
+        'font_size': {'type': 'long', 'value': 12},
+        'column_widths': {'type': 'string', 'value': JSON.stringify([3.0, 2.0, 3.0, 2.5])}
+      }
+    }
+    
+    console.log('📤 表格插入格式（官方正确格式）:', insertTableFormat)
+    setReceivedMessages(prev => [...prev.slice(-9), '📊 测试表格插入'])
+    
+    try {
+      iframeRef.current.contentWindow?.postMessage(JSON.stringify({'MessageId': 'Host_PostmessageReady'}), '*')
+      iframeRef.current.contentWindow?.postMessage(JSON.stringify(insertTableFormat), collaboraUrl)
+      
+      messageApi.info('✅ 已发送表格插入请求！')
+    } catch (error) {
+      console.error('❌ 发送表格插入请求失败:', error)
+      messageApi.error('发送表格插入请求失败')
+    }
+  }
+
+  // 测试图片插入功能
+  const testInsertImage = () => {
+    if (!iframeRef.current) {
+      console.log('❌ iframe未准备好')
+      messageApi.error('文档编辑器未准备好')
+      return
+    }
+
+    console.log('🖼️ 测试图片插入功能 - 插入测试图片')
+    
+    // 使用官方正确格式调用insert_image函数
+    const insertImageFormat = {
+      'MessageId': 'CallPythonScript',
+      'SendTime': Date.now(),
+      'ScriptFile': 'office_api.py',
+      'Function': 'insert_image',
+      'Values': {
+        'image_path': {'type': 'string', 'value': 'https://powerai.cc:5103/1.png'},
+        'image_title': {'type': 'string', 'value': '测试图片 - 本地1.png图片'},
+        'width': {'type': 'double', 'value': 8.0},
+        'height': {'type': 'double', 'value': 5.0},
+        'anchor_type': {'type': 'string', 'value': 'at_paragraph'},
+        'alignment': {'type': 'string', 'value': 'center'},
+        'keep_aspect_ratio': {'type': 'boolean', 'value': false}
+      }
+    }
+    
+    console.log('📤 图片插入格式（官方正确格式）:', insertImageFormat)
+    setReceivedMessages(prev => [...prev.slice(-9), '🖼️ 测试图片插入'])
+    
+    try {
+      iframeRef.current.contentWindow?.postMessage(JSON.stringify({'MessageId': 'Host_PostmessageReady'}), '*')
+      iframeRef.current.contentWindow?.postMessage(JSON.stringify(insertImageFormat), collaboraUrl)
+      
+      messageApi.info('✅ 已发送图片插入请求！')
+    } catch (error) {
+      console.error('❌ 发送图片插入请求失败:', error)
+      messageApi.error('发送图片插入请求失败')
+    }
+  }
+
+  // 综合测试新功能
+  const testNewFunctions = () => {
+    if (!iframeRef.current) {
+      console.log('❌ iframe未准备好')
+      messageApi.error('文档编辑器未准备好')
+      return
+    }
+
+    console.log('🎯 开始综合测试新功能...')
+    messageApi.info('开始综合测试：标题→文字→表格→图片')
+    
+    // 第一步：插入标题
+    setTimeout(() => {
+      const titleFormat = {
+        'MessageId': 'CallPythonScript',
+        'SendTime': Date.now(),
+        'ScriptFile': 'office_api.py',
+        'Function': 'insert_title',
+        'Values': {
+          'title': {'type': 'string', 'value': '新功能测试报告'},
+          'outline_level': {'type': 'long', 'value': 1},
+          'font_size': {'type': 'long', 'value': 16},
+          'font_color': {'type': 'string', 'value': 'blue'},
+          'font_bold': {'type': 'boolean', 'value': true}
+        }
+      }
+      
+      iframeRef.current?.contentWindow?.postMessage(JSON.stringify({'MessageId': 'Host_PostmessageReady'}), '*')
+      iframeRef.current?.contentWindow?.postMessage(JSON.stringify(titleFormat), collaboraUrl)
+      console.log('✅ 第1步：插入标题')
+    }, 500)
+    
+    // 第二步：插入说明文字
+    setTimeout(() => {
+      const textFormat = {
+        'MessageId': 'CallPythonScript',
+        'SendTime': Date.now(),
+        'ScriptFile': 'office_api.py',
+        'Function': 'insert_text',
+        'Values': {
+          'text': {'type': 'string', 'value': '本文档展示了新开发的insert_table和insert_image函数的功能。下面将展示各种表格和图片插入效果。'},
+          'font_name': {'type': 'string', 'value': 'SimSun'},
+          'font_size': {'type': 'long', 'value': 12},
+          'font_color': {'type': 'string', 'value': 'black'}
+        }
+      }
+      
+      iframeRef.current?.contentWindow?.postMessage(JSON.stringify(textFormat), collaboraUrl)
+      console.log('✅ 第2步：插入说明文字')
+    }, 2000)
+    
+    // 第三步：插入表格
+    setTimeout(() => {
+      const tableData = [
+        ["功能", "状态", "测试结果"],
+        ["insert_table", "✅完成", "通过"],
+        ["insert_image", "✅完成", "通过"],
+        ["批量数据", "✅完成", "通过"]
+      ]
+      
+      const tableFormat = {
+        'MessageId': 'CallPythonScript',
+        'SendTime': Date.now(),
+        'ScriptFile': 'office_api.py',
+        'Function': 'insert_table',
+        'Values': {
+          'rows': {'type': 'long', 'value': 4},
+          'columns': {'type': 'long', 'value': 3},
+          'table_title': {'type': 'string', 'value': '功能测试结果汇总'},
+          'cell_data': {'type': 'string', 'value': JSON.stringify(tableData)},
+          'border_style': {'type': 'string', 'value': 'thick'},
+          'header_style': {'type': 'boolean', 'value': true},
+          'font_size': {'type': 'long', 'value': 11}
+        }
+      }
+      
+      iframeRef.current?.contentWindow?.postMessage(JSON.stringify(tableFormat), collaboraUrl)
+      console.log('✅ 第3步：插入测试表格')
+    }, 4000)
+    
+    // 第四步：插入图片
+    setTimeout(() => {
+      const imageFormat = {
+        'MessageId': 'CallPythonScript',
+        'SendTime': Date.now(),
+        'ScriptFile': 'office_api.py',
+        'Function': 'insert_image',
+        'Values': {
+          'image_path': {'type': 'string', 'value': 'https://powerai.cc:5103/1.png'},
+          'image_title': {'type': 'string', 'value': '测试完成 - 本地1.png图片'},
+          'width': {'type': 'double', 'value': 10.0},
+          'height': {'type': 'double', 'value': 5.0},
+          'anchor_type': {'type': 'string', 'value': 'at_paragraph'},
+          'alignment': {'type': 'string', 'value': 'center'}
+        }
+      }
+      
+      iframeRef.current?.contentWindow?.postMessage(JSON.stringify(imageFormat), collaboraUrl)
+      console.log('✅ 第4步：插入测试图片')
+      messageApi.success('🎉 综合测试完成！请检查文档内容')
+    }, 6000)
+    
+    setReceivedMessages(prev => [...prev.slice(-9), '🎯 开始4步综合测试'])
+  }
+
 
 
   const items = [
@@ -1035,7 +1227,6 @@ const EditorPanel: React.FC = () => {
           */}
           
           {/* 测试按钮区域 */}
-          {/*
           <div style={{ 
             padding: '8px 16px', 
             background: '#f0f2f5',
@@ -1067,25 +1258,30 @@ const EditorPanel: React.FC = () => {
             </Button>
             <Button 
               size="small" 
-              onClick={testUnoConnection}
-              disabled={!documentReady}
-            >
-              测试UNO连接  
-            </Button>
-            <Button 
-              size="small" 
-              onClick={testDirectMacroCall}
-              disabled={!documentReady}
-            >
-              直接宏调用
-            </Button>
-            <Button 
-              size="small" 
-              onClick={testSearchHello}
+              onClick={testInsertTable}
               disabled={!documentReady}
               type="primary"
+              style={{ background: '#ff6b35', borderColor: '#ff6b35' }}
             >
-              官方格式-搜索hello
+              🆕测试表格插入
+            </Button>
+            <Button 
+              size="small" 
+              onClick={testInsertImage}
+              disabled={!documentReady}
+              type="primary"
+              style={{ background: '#f39c12', borderColor: '#f39c12' }}
+            >
+              🆕测试图片插入
+            </Button>
+            <Button 
+              size="small" 
+              onClick={testNewFunctions}
+              disabled={!documentReady}
+              type="primary"
+              style={{ background: '#e74c3c', borderColor: '#e74c3c' }}
+            >
+              🎯综合测试新功能
             </Button>
             <Button 
               size="small" 
@@ -1101,7 +1297,6 @@ const EditorPanel: React.FC = () => {
               {documentReady ? '文档已就绪' : '等待文档加载...'}
             </span>
           </div>
-          */}
           
           {iframeError ? (
             <div style={{ 

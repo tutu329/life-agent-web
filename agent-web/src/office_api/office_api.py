@@ -1671,6 +1671,630 @@ def insert_title(title, outline_level=1, font_name="SimSun", font_size=14, font_
             "timestamp": timestamp
         }
 
+def insert_table(rows=3, columns=3, table_title="", cell_data=None, 
+                border_style="simple", column_widths=None, 
+                header_style=True, font_name="SimSun", font_size=12):
+    """
+    插入表格到文档当前位置，支持批量数据填充和样式设置
+    
+    参数：
+    - rows: 表格行数（默认3行）
+    - columns: 表格列数（默认3列）
+    - table_title: 表格标题（可选，会插入在表格上方）
+    - cell_data: 单元格数据，支持多种格式：
+      - None: 创建空表格
+      - 字符串: 所有单元格填充相同内容
+      - 二维列表: [["A1","B1","C1"], ["A2","B2","C2"]]
+      - 字典: {"A1": "内容1", "B2": "内容2"} (按单元格名称填充)
+    - border_style: 边框样式（"simple"/"none"/"thick"）
+    - column_widths: 列宽设置，单位cm，如[3.0, 4.0, 2.5]
+    - header_style: 是否设置第一行为表头样式（粗体、居中）
+    - font_name, font_size: 表格字体设置
+    """
+    write_log(f"📊📊📊 insert_table() 函数被调用！")
+    write_log(f"表格参数: rows={rows}, columns={columns}, title='{table_title}'")
+    write_log(f"样式参数: border_style={border_style}, header_style={header_style}")
+    write_log(f"字体参数: font_name={font_name}, font_size={font_size}")
+    write_log("=== insert_table() 函数开始执行 ===")
+    
+    try:
+        # 参数验证和默认值处理
+        if not isinstance(rows, int) or rows <= 0:
+            rows = 3
+            write_log(f"⚠️ 行数无效，使用默认值: {rows}")
+        
+        if not isinstance(columns, int) or columns <= 0:
+            columns = 3
+            write_log(f"⚠️ 列数无效，使用默认值: {columns}")
+        
+        if not font_name:
+            font_name = "SimSun"
+        
+        if not isinstance(font_size, (int, float)) or font_size <= 0:
+            font_size = 12
+        
+        write_log(f"最终参数: {rows}行 x {columns}列, 字体: {font_name} {font_size}pt")
+        
+        # 获取文档上下文
+        desktop = XSCRIPTCONTEXT.getDesktop()
+        write_log("成功获取desktop")
+        
+        model = desktop.getCurrentComponent()
+        write_log(f"获取当前文档组件: {model}")
+
+        if not model:
+            write_log("ERROR: 没有打开的文档")
+            return "ERROR: 没有打开的文档"
+
+        # 获取文档的文本内容和光标
+        doc_text = model.getText()
+        cursor = doc_text.createTextCursor()
+        cursor.gotoEnd(False)
+        write_log("成功创建文本光标并移动到文档末尾")
+        
+        # === 第一步：插入表格标题（如果提供） ===
+        if table_title and table_title.strip():
+            title_text = f"\n{table_title.strip()}\n"
+            doc_text.insertString(cursor, title_text, False)
+            write_log(f"已插入表格标题: {table_title}")
+        
+        # === 第二步：创建表格 ===
+        write_log("开始创建表格...")
+        
+        # 创建表格对象
+        table = model.createInstance("com.sun.star.text.TextTable")
+        write_log("成功创建表格实例")
+        
+        # 初始化表格尺寸
+        table.initialize(rows, columns)
+        write_log(f"成功初始化表格尺寸: {rows}行 x {columns}列")
+        
+        # 插入表格到文档
+        doc_text.insertTextContent(cursor, table, False)
+        write_log("✅ 表格已成功插入到文档")
+        
+        # === 第三步：设置列宽（如果提供） ===
+        if column_widths:
+            write_log("设置列宽...")
+            
+            # 处理JSON字符串格式的列宽数据
+            if isinstance(column_widths, str):
+                try:
+                    import json
+                    column_widths = json.loads(column_widths)
+                    write_log(f"成功解析列宽JSON字符串: {column_widths}")
+                except:
+                    write_log(f"无法解析列宽JSON字符串，跳过列宽设置")
+                    column_widths = None
+            
+            if column_widths and isinstance(column_widths, list):
+                try:
+                    table_columns = table.getColumns()
+                    for i, width in enumerate(column_widths):
+                        if i < columns and isinstance(width, (int, float)) and width > 0:
+                            col = table_columns.getByIndex(i)
+                            # 转换为微米单位 (1cm = 10000微米)
+                            width_microns = int(width * 10000)
+                            col.setPropertyValue("Width", width_microns)
+                            write_log(f"  列{i+1}宽度设置为: {width}cm ({width_microns}微米)")
+                    
+                    write_log("✅ 列宽设置完成")
+                except Exception as width_error:
+                    write_log(f"⚠️ 设置列宽时出错: {str(width_error)}")
+        
+        # === 第四步：填充表格数据 ===
+        if cell_data is not None:
+            write_log("开始填充表格数据...")
+            write_log(f"数据类型: {type(cell_data)}")
+            
+            # 处理JSON字符串格式的数据（从前端传来的可能是JSON字符串）
+            if isinstance(cell_data, str):
+                try:
+                    import json
+                    cell_data = json.loads(cell_data)
+                    write_log(f"成功解析JSON字符串，转换后类型: {type(cell_data)}")
+                except:
+                    write_log(f"无法解析JSON字符串，保持原始字符串格式")
+            
+            try:
+                if isinstance(cell_data, list) and len(cell_data) > 0:
+                    # 处理二维列表数据 - 优先使用批量方法
+                    if all(isinstance(row, list) for row in cell_data):
+                        write_log("检测到二维列表数据，尝试批量填充...")
+                        
+                        try:
+                            # 计算实际数据范围
+                            data_rows = min(len(cell_data), rows)
+                            data_cols = min(max(len(row) for row in cell_data) if cell_data else 0, columns)
+                            
+                            if data_rows > 0 and data_cols > 0:
+                                # 构建单元格范围
+                                range_name = f"A1:{chr(65 + data_cols - 1)}{data_rows}"
+                                write_log(f"使用范围 {range_name} 进行批量填充")
+                                
+                                # 获取单元格范围
+                                cell_range = table.getCellRangeByName(range_name)
+                                
+                                # 准备数据数组
+                                data_array = []
+                                for i in range(data_rows):
+                                    row_data = []
+                                    for j in range(data_cols):
+                                        if i < len(cell_data) and j < len(cell_data[i]):
+                                            cell_value = cell_data[i][j]
+                                            row_data.append(str(cell_value) if cell_value is not None else "")
+                                        else:
+                                            row_data.append("")
+                                    data_array.append(tuple(row_data))
+                                
+                                # 批量设置数据
+                                cell_range.setDataArray(tuple(data_array))
+                                write_log(f"✅ 成功使用批量方法填充 {data_rows}x{data_cols} 数据")
+                            
+                        except Exception as batch_error:
+                            write_log(f"⚠️ 批量填充失败，使用逐个单元格填充: {str(batch_error)}")
+                            # 回退到逐个单元格填充
+                            for i, row_data in enumerate(cell_data):
+                                if i >= rows:
+                                    break
+                                if isinstance(row_data, list):
+                                    for j, cell_value in enumerate(row_data):
+                                        if j >= columns:
+                                            break
+                                        cell_name = f"{chr(65 + j)}{i + 1}"
+                                        try:
+                                            cell = table.getCellByName(cell_name)
+                                            cell.setString(str(cell_value) if cell_value is not None else "")
+                                        except Exception as cell_error:
+                                            write_log(f"❌ 填充单元格 {cell_name} 失败: {str(cell_error)}")
+                    
+                    else:
+                        # 一维列表，按行填充
+                        write_log("检测到一维列表数据，按行填充...")
+                        for i, item in enumerate(cell_data):
+                            if i >= rows:
+                                break
+                            for j in range(columns):
+                                cell_name = f"{chr(65 + j)}{i + 1}"
+                                try:
+                                    cell = table.getCellByName(cell_name)
+                                    cell.setString(str(item) if item is not None else "")
+                                except Exception as cell_error:
+                                    write_log(f"❌ 填充单元格 {cell_name} 失败: {str(cell_error)}")
+                
+                elif isinstance(cell_data, dict):
+                    # 字典数据，按单元格名称填充
+                    write_log("检测到字典数据，按单元格名称填充...")
+                    for cell_name, cell_value in cell_data.items():
+                        try:
+                            cell = table.getCellByName(cell_name.upper())
+                            cell.setString(str(cell_value) if cell_value is not None else "")
+                            write_log(f"  填充单元格 {cell_name}: {str(cell_value)[:20]}...")
+                        except Exception as cell_error:
+                            write_log(f"❌ 填充单元格 {cell_name} 失败: {str(cell_error)}")
+                
+                elif isinstance(cell_data, str):
+                    # 字符串数据，填充所有单元格
+                    write_log("检测到字符串数据，填充所有单元格...")
+                    for i in range(rows):
+                        for j in range(columns):
+                            cell_name = f"{chr(65 + j)}{i + 1}"
+                            try:
+                                cell = table.getCellByName(cell_name)
+                                cell.setString(cell_data)
+                            except Exception as cell_error:
+                                write_log(f"❌ 填充单元格 {cell_name} 失败: {str(cell_error)}")
+                
+                write_log("✅ 数据填充完成")
+                
+            except Exception as data_error:
+                write_log(f"❌ 数据填充过程中出错: {str(data_error)}")
+        
+        # === 第五步：设置表头样式 ===
+        if header_style and rows > 0:
+            write_log("设置表头样式...")
+            try:
+                for j in range(columns):
+                    cell_name = f"{chr(65 + j)}1"
+                    try:
+                        cell = table.getCellByName(cell_name)
+                        
+                        # 设置粗体
+                        cell.setPropertyValue("CharWeight", 150.0)  # Bold
+                        
+                        # 设置居中对齐
+                        cell.setPropertyValue("ParaAdjust", 1)  # CENTER
+                        
+                        # 设置背景色（浅灰色）
+                        cell.setPropertyValue("BackColor", 0xF0F0F0)
+                        
+                        write_log(f"  表头单元格 {cell_name} 样式设置完成")
+                        
+                    except Exception as header_error:
+                        write_log(f"❌ 设置表头单元格 {cell_name} 样式失败: {str(header_error)}")
+                
+                write_log("✅ 表头样式设置完成")
+                
+            except Exception as header_style_error:
+                write_log(f"⚠️ 设置表头样式时出错: {str(header_style_error)}")
+        
+        # === 第六步：设置表格字体 ===
+        try:
+            write_log("设置表格字体...")
+            
+            # 设置整个表格的字体属性
+            table.setPropertyValue("CharFontName", font_name)
+            table.setPropertyValue("CharFontNameAsian", font_name)
+            table.setPropertyValue("CharHeight", float(font_size))
+            table.setPropertyValue("CharHeightAsian", float(font_size))
+            
+            write_log(f"✅ 表格字体设置完成: {font_name} {font_size}pt")
+            
+        except Exception as font_error:
+            write_log(f"⚠️ 设置表格字体时出错: {str(font_error)}")
+        
+        # === 第七步：设置边框样式 ===
+        try:
+            write_log(f"设置表格边框样式: {border_style}")
+            
+            if border_style == "none":
+                # 无边框
+                table.setPropertyValue("TableBorder", None)
+                write_log("已设置为无边框")
+                
+            elif border_style == "thick":
+                # 粗边框
+                try:
+                    # 创建边框线
+                    from com.sun.star.table import BorderLine
+                    border_line = BorderLine()
+                    border_line.OuterLineWidth = 50  # 粗边框，单位1/100mm
+                    border_line.Color = 0x000000     # 黑色
+                    
+                    # 创建表格边框
+                    from com.sun.star.table import TableBorder
+                    table_border = TableBorder()
+                    table_border.TopLine = border_line
+                    table_border.BottomLine = border_line
+                    table_border.LeftLine = border_line
+                    table_border.RightLine = border_line
+                    table_border.HorizontalLine = border_line
+                    table_border.VerticalLine = border_line
+                    
+                    table.setPropertyValue("TableBorder", table_border)
+                    write_log("已设置为粗边框")
+                    
+                except Exception as thick_border_error:
+                    write_log(f"⚠️ 设置粗边框失败: {str(thick_border_error)}，使用默认边框")
+            
+            else:
+                # 默认simple边框或其他情况，使用系统默认
+                write_log("使用默认边框样式")
+            
+        except Exception as border_error:
+            write_log(f"⚠️ 设置边框样式时出错: {str(border_error)}")
+        
+        # === 第八步：移动光标到表格后 ===
+        cursor.gotoEnd(False)
+        
+        # === 第九步：插入确认消息 ===
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # 统计信息
+        data_info = ""
+        if cell_data is not None:
+            if isinstance(cell_data, list):
+                data_info = f", 已填充 {len(cell_data)} 行数据"
+            elif isinstance(cell_data, dict):
+                data_info = f", 已填充 {len(cell_data)} 个单元格"
+            elif isinstance(cell_data, str):
+                data_info = f", 已用统一内容填充"
+        
+        confirmation_msg = f"\n[{timestamp}] 📊 表格插入完成:\n"
+        confirmation_msg += f"   尺寸: {rows}行 x {columns}列\n"
+        confirmation_msg += f"   标题: {table_title if table_title else '无'}\n"
+        confirmation_msg += f"   字体: {font_name} {font_size}pt\n"
+        confirmation_msg += f"   边框: {border_style}\n"
+        confirmation_msg += f"   表头样式: {'是' if header_style else '否'}\n"
+        if column_widths:
+            confirmation_msg += f"   列宽: {column_widths}\n"
+        confirmation_msg += f"   数据: {'已填充' if cell_data is not None else '空表格'}{data_info}\n"
+        
+        doc_text.insertString(cursor, confirmation_msg, False)
+        write_log("已在文档末尾插入确认消息")
+        
+        write_log("=== insert_table() 函数执行完成 ===")
+        
+        return f"SUCCESS: 成功插入 {rows}x{columns} 表格{data_info}"
+        
+    except Exception as e:
+        error_msg = f"ERROR in insert_table(): {str(e)}"
+        error_traceback = traceback.format_exc()
+        write_log(f"{error_msg}\n{error_traceback}")
+        
+        # 尝试在文档中也显示错误信息
+        try:
+            desktop = XSCRIPTCONTEXT.getDesktop()
+            model = desktop.getCurrentComponent()
+            if model:
+                doc_text = model.getText()
+                cursor = doc_text.createTextCursor()
+                cursor.gotoEnd(False)
+                error_display = f"\n[ERROR] insert_table() 执行失败: {str(e)}\n"
+                doc_text.insertString(cursor, error_display, False)
+        except:
+            pass
+            
+        return error_msg
+
+def insert_image(image_path, image_title="", width=None, height=None, 
+                anchor_type="at_paragraph", alignment="center",
+                keep_aspect_ratio=True):
+    """
+    插入图片到文档当前位置
+    
+    参数：
+    - image_path: 图片文件路径（支持本地路径和URL）
+    - image_title: 图片标题/说明（会作为图片标题插入）
+    - width: 图片宽度，单位cm（None表示使用原始宽度）
+    - height: 图片高度，单位cm（None表示使用原始高度）
+    - anchor_type: 锚定类型：
+      - "at_paragraph": 锚定到段落
+      - "at_character": 锚定到字符
+      - "as_character": 作为字符
+      - "at_page": 锚定到页面
+    - alignment: 对齐方式（"left"/"center"/"right"）
+    - keep_aspect_ratio: 是否保持纵横比
+    """
+    write_log(f"🖼️🖼️🖼️ insert_image() 函数被调用！")
+    write_log(f"图片参数: path='{image_path}', title='{image_title}'")
+    write_log(f"尺寸参数: width={width}, height={height}, keep_aspect_ratio={keep_aspect_ratio}")
+    write_log(f"样式参数: anchor_type={anchor_type}, alignment={alignment}")
+    write_log("=== insert_image() 函数开始执行 ===")
+    
+    try:
+        # 参数验证
+        if not image_path or not image_path.strip():
+            error_msg = "ERROR: 图片路径为空"
+            write_log(error_msg)
+            return error_msg
+        
+        image_path = image_path.strip()
+        write_log(f"图片路径: {image_path}")
+        
+        # 获取文档上下文
+        desktop = XSCRIPTCONTEXT.getDesktop()
+        write_log("成功获取desktop")
+        
+        model = desktop.getCurrentComponent()
+        write_log(f"获取当前文档组件: {model}")
+
+        if not model:
+            write_log("ERROR: 没有打开的文档")
+            return "ERROR: 没有打开的文档"
+
+        # 获取文档的文本内容和光标
+        doc_text = model.getText()
+        cursor = doc_text.createTextCursor()
+        cursor.gotoEnd(False)
+        write_log("成功创建文本光标并移动到文档末尾")
+        
+        # === 第一步：处理图片路径 ===
+        write_log("处理图片路径...")
+        
+        graphic_url = ""
+        try:
+            import uno
+            import os
+            
+            # 检查是否为URL
+            if image_path.startswith(('http://', 'https://', 'ftp://', 'file://')):
+                graphic_url = image_path
+                write_log(f"检测到URL格式: {graphic_url}")
+            else:
+                # 本地文件路径处理
+                if not os.path.isabs(image_path):
+                    # 相对路径转换为绝对路径
+                    image_path = os.path.abspath(image_path)
+                    write_log(f"相对路径已转换为绝对路径: {image_path}")
+                
+                # 检查文件是否存在
+                if not os.path.exists(image_path):
+                    error_msg = f"ERROR: 图片文件不存在: {image_path}"
+                    write_log(error_msg)
+                    return error_msg
+                
+                # 转换为UNO URL格式
+                graphic_url = uno.systemPathToFileUrl(image_path)
+                write_log(f"本地路径已转换为UNO URL: {graphic_url}")
+            
+        except Exception as path_error:
+            error_msg = f"ERROR: 图片路径处理失败: {str(path_error)}"
+            write_log(error_msg)
+            return error_msg
+        
+        # === 第二步：创建图片对象 ===
+        write_log("创建图片对象...")
+        
+        try:
+            # 创建图形对象
+            graphic = model.createInstance("com.sun.star.text.GraphicObject")
+            write_log("成功创建图形对象实例")
+            
+            # 设置图片URL
+            graphic.setPropertyValue("GraphicURL", graphic_url)
+            write_log(f"已设置图片URL: {graphic_url}")
+            
+        except Exception as create_error:
+            error_msg = f"ERROR: 创建图片对象失败: {str(create_error)}"
+            write_log(error_msg)
+            return error_msg
+        
+        # === 第三步：设置锚定类型 ===
+        write_log(f"设置锚定类型: {anchor_type}")
+        
+        try:
+            from com.sun.star.text import TextContentAnchorType
+            
+            anchor_types = {
+                "at_paragraph": TextContentAnchorType.AT_PARAGRAPH,
+                "at_character": TextContentAnchorType.AT_CHARACTER,
+                "as_character": TextContentAnchorType.AS_CHARACTER,
+                "at_page": TextContentAnchorType.AT_PAGE
+            }
+            
+            anchor_value = anchor_types.get(anchor_type, TextContentAnchorType.AT_PARAGRAPH)
+            graphic.setPropertyValue("AnchorType", anchor_value)
+            write_log(f"已设置锚定类型: {anchor_type}")
+            
+        except Exception as anchor_error:
+            write_log(f"⚠️ 设置锚定类型失败: {str(anchor_error)}，使用默认值")
+        
+        # === 第四步：插入图片到文档 ===
+        write_log("插入图片到文档...")
+        
+        try:
+            doc_text.insertTextContent(cursor, graphic, False)
+            write_log("✅ 图片已成功插入到文档")
+            
+        except Exception as insert_error:
+            error_msg = f"ERROR: 插入图片失败: {str(insert_error)}"
+            write_log(error_msg)
+            return error_msg
+        
+        # === 第五步：设置图片尺寸 ===
+        if width is not None or height is not None:
+            write_log("设置图片尺寸...")
+            
+            try:
+                # 获取图片原始尺寸
+                original_size = graphic.getPropertyValue("Size")
+                original_width_mm = original_size.Width / 100  # 转换为毫米
+                original_height_mm = original_size.Height / 100
+                
+                write_log(f"图片原始尺寸: {original_width_mm:.1f}mm x {original_height_mm:.1f}mm")
+                
+                # 计算新尺寸
+                new_width_mm = width * 10 if width is not None else original_width_mm
+                new_height_mm = height * 10 if height is not None else original_height_mm
+                
+                # 保持纵横比处理
+                if keep_aspect_ratio and width is not None and height is not None:
+                    original_ratio = original_width_mm / original_height_mm
+                    new_ratio = new_width_mm / new_height_mm
+                    
+                    if abs(new_ratio - original_ratio) > 0.01:  # 比例不一致
+                        if new_ratio > original_ratio:
+                            # 宽度过大，按高度调整宽度
+                            new_width_mm = new_height_mm * original_ratio
+                            write_log(f"保持纵横比：调整宽度为 {new_width_mm/10:.1f}cm")
+                        else:
+                            # 高度过大，按宽度调整高度
+                            new_height_mm = new_width_mm / original_ratio
+                            write_log(f"保持纵横比：调整高度为 {new_height_mm/10:.1f}cm")
+                
+                # 设置新尺寸
+                from com.sun.star.awt import Size
+                new_size = Size()
+                new_size.Width = int(new_width_mm * 100)  # 转换为1/100mm
+                new_size.Height = int(new_height_mm * 100)
+                
+                graphic.setPropertyValue("Size", new_size)
+                write_log(f"✅ 图片尺寸已设置为: {new_width_mm/10:.1f}cm x {new_height_mm/10:.1f}cm")
+                
+            except Exception as size_error:
+                write_log(f"⚠️ 设置图片尺寸失败: {str(size_error)}")
+        
+        # === 第六步：设置对齐方式 ===
+        if anchor_type != "as_character":  # 作为字符时不能设置段落对齐
+            write_log(f"设置对齐方式: {alignment}")
+            
+            try:
+                from com.sun.star.style import ParagraphAdjust
+                
+                alignment_map = {
+                    "left": ParagraphAdjust.LEFT,
+                    "center": ParagraphAdjust.CENTER,
+                    "right": ParagraphAdjust.RIGHT
+                }
+                
+                if alignment in alignment_map:
+                    # 需要设置包含图片的段落的对齐方式
+                    graphic.setPropertyValue("ParaAdjust", alignment_map[alignment])
+                    write_log(f"已设置对齐方式: {alignment}")
+                
+            except Exception as align_error:
+                write_log(f"⚠️ 设置对齐方式失败: {str(align_error)}")
+        
+        # === 第七步：插入图片标题（如果提供） ===
+        if image_title and image_title.strip():
+            write_log("插入图片标题...")
+            
+            try:
+                # 移动光标到图片后
+                cursor.gotoEnd(False)
+                
+                # 插入标题
+                title_text = f"\n{image_title.strip()}\n"
+                doc_text.insertString(cursor, title_text, False)
+                
+                # 设置标题格式（居中、小字体）
+                title_cursor = doc_text.createTextCursorByRange(cursor.getStart())
+                title_cursor.goLeft(len(title_text), True)
+                
+                title_cursor.setPropertyValue("ParaAdjust", 1)  # CENTER
+                title_cursor.setPropertyValue("CharHeight", 10.0)  # 小字体
+                title_cursor.setPropertyValue("CharPosture", 1)  # Italic
+                
+                write_log(f"已插入图片标题: {image_title}")
+                
+            except Exception as title_error:
+                write_log(f"⚠️ 插入图片标题失败: {str(title_error)}")
+        
+        # === 第八步：移动光标到文档末尾 ===
+        cursor.gotoEnd(False)
+        
+        # === 第九步：插入确认消息 ===
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        confirmation_msg = f"\n[{timestamp}] 🖼️ 图片插入完成:\n"
+        confirmation_msg += f"   路径: {image_path}\n"
+        confirmation_msg += f"   标题: {image_title if image_title else '无'}\n"
+        if width is not None or height is not None:
+            size_info = f"{width}cm" if width else "自动"
+            size_info += f" x {height}cm" if height else " x 自动"
+            confirmation_msg += f"   尺寸: {size_info}\n"
+        confirmation_msg += f"   锚定: {anchor_type}\n"
+        confirmation_msg += f"   对齐: {alignment}\n"
+        confirmation_msg += f"   保持比例: {'是' if keep_aspect_ratio else '否'}\n"
+        
+        doc_text.insertString(cursor, confirmation_msg, False)
+        write_log("已在文档末尾插入确认消息")
+        
+        write_log("=== insert_image() 函数执行完成 ===")
+        
+        return f"SUCCESS: 成功插入图片 {image_path}"
+        
+    except Exception as e:
+        error_msg = f"ERROR in insert_image(): {str(e)}"
+        error_traceback = traceback.format_exc()
+        write_log(f"{error_msg}\n{error_traceback}")
+        
+        # 尝试在文档中也显示错误信息
+        try:
+            desktop = XSCRIPTCONTEXT.getDesktop()
+            model = desktop.getCurrentComponent()
+            if model:
+                doc_text = model.getText()
+                cursor = doc_text.createTextCursor()
+                cursor.gotoEnd(False)
+                error_display = f"\n[ERROR] insert_image() 执行失败: {str(e)}\n"
+                doc_text.insertString(cursor, error_display, False)
+        except:
+            pass
+            
+        return error_msg
+
 # LibreOffice/Collabora CODE 要求导出函数
 # 这是必须的，否则CallPythonScript无法找到函数
-g_exportedScripts = (hello, get_document_content, test_uno_connection, simple_test, debug_params, search_and_format_text, search_and_replace_with_format, select_chapter, insert_text, set_paragraph, insert_title,) 
+g_exportedScripts = (hello, get_document_content, test_uno_connection, simple_test, debug_params, search_and_format_text, search_and_replace_with_format, select_chapter, insert_text, set_paragraph, insert_title, insert_table, insert_image,) 
