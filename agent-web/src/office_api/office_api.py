@@ -585,8 +585,10 @@ def search_and_format_text(*args, **kwargs):
     
     # 参数验证
     if not search_text or search_text == "":
-        search_text = "hello"
-        write_log(f"⚠️ 搜索文本为空，使用默认值: {search_text}")
+        write_log("ERROR: 搜索文本为空")
+        return "ERROR: 搜索文本为空，无法执行搜索"
+        # search_text = "hello"  # 测试内容已注释
+        # write_log(f"⚠️ 搜索文本为空，使用默认值: {search_text}")
     
     if not highlight_color:
         highlight_color = "yellow"
@@ -1080,8 +1082,9 @@ def insert_text(text, font_name="SimSun", font_color="black", font_size=12):
     try:
         # 参数验证和默认值处理
         if not text:
-            write_log("WARNING: 文本参数为空，使用默认文本")
-            text = "默认插入文本"
+            write_log("ERROR: 文本参数为空")
+            return "ERROR: 文本参数为空，无法插入"
+            # text = "默认插入文本"  # 测试内容已注释
         
         # 确保文本是字符串类型
         if not isinstance(text, str):
@@ -1199,18 +1202,18 @@ def insert_text(text, font_name="SimSun", font_color="black", font_size=12):
         error_traceback = traceback.format_exc()
         write_log(f"{error_msg}\n{error_traceback}")
         
-        # 尝试在文档中也显示错误信息
-        try:
-            desktop = XSCRIPTCONTEXT.getDesktop()
-            model = desktop.getCurrentComponent()
-            if model:
-                doc_text = model.getText()
-                cursor = doc_text.createTextCursor()
-                cursor.gotoEnd(False)
-                error_display = f"\n[ERROR] insert_text() 执行失败: {str(e)}\n"
-                doc_text.insertString(cursor, error_display, False)
-        except:
-            pass
+        # 尝试在文档中也显示错误信息 - 已注释避免弹出信息
+        # try:
+        #     desktop = XSCRIPTCONTEXT.getDesktop()
+        #     model = desktop.getCurrentComponent()
+        #     if model:
+        #         doc_text = model.getText()
+        #         cursor = doc_text.createTextCursor()
+        #         cursor.gotoEnd(False)
+        #         error_display = f"\n[ERROR] insert_text() 执行失败: {str(e)}\n"
+        #         doc_text.insertString(cursor, error_display, False)
+        # except:
+        #     pass
             
         return error_msg
 

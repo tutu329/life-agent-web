@@ -264,7 +264,7 @@ const EditorPanel: React.FC = () => {
             // messageApi.info('✅ 已发送CallPythonScript调用，请观察控制台和文档响应！')
           } catch (error) {
             console.error('❌ 发送CallPythonScript失败:', error)
-            messageApi.error('发送Python脚本调用失败')
+            // messageApi.error('发送Python脚本调用失败')
           }
 
           // const officialFormat = {
@@ -470,16 +470,16 @@ const EditorPanel: React.FC = () => {
           console.log('🐍 详细响应内容:', responseText)
           setReceivedMessages(prev => [...prev.slice(-9), `Python响应: ${responseText}`])
             
-          // 如果包含ERROR，显示错误消息
+          // 如果包含ERROR，显示错误消息 - 弹出消息已注释
           if (responseText.includes('ERROR')) {
             console.error('❌ Python API执行出错:', responseText)
-            messageApi.error(`Python API执行出错: ${responseText}`)
+            // messageApi.error(`Python API执行出错: ${responseText}`)
           } else if (responseText.includes('SUCCESS')) {
             console.log('✅ Python API执行成功:', responseText)
-            messageApi.success(`Python API执行成功: ${responseText}`)
+            // messageApi.success(`Python API执行成功: ${responseText}`)
           } else {
             console.warn('⚠️ Python API响应未知格式:', responseText)
-            messageApi.info(`Python API响应: ${responseText}`)
+            // messageApi.info(`Python API响应: ${responseText}`)
           }
         }
         
@@ -722,10 +722,10 @@ const EditorPanel: React.FC = () => {
       iframeRef.current.contentWindow?.postMessage(JSON.stringify({'MessageId': 'Host_PostmessageReady'}), '*')
       iframeRef.current.contentWindow?.postMessage(JSON.stringify(officialFormat), collaboraUrl)
       
-      messageApi.info('✅ 已发送CallPythonScript调用，请观察控制台和文档响应！')
+      // messageApi.info('✅ 已发送CallPythonScript调用，请观察控制台和文档响应！')
     } catch (error) {
       console.error('❌ 发送CallPythonScript失败:', error)
-      messageApi.error('发送Python脚本调用失败')
+      // messageApi.error('发送Python脚本调用失败')
     }
   }
 
@@ -753,10 +753,10 @@ const EditorPanel: React.FC = () => {
       iframeRef.current.contentWindow?.postMessage(JSON.stringify({'MessageId': 'Host_PostmessageReady'}), '*')
       iframeRef.current.contentWindow?.postMessage(JSON.stringify(getContentFormat), collaboraUrl)
       
-      messageApi.info('✅ 已发送获取文档内容请求，请观察控制台和文档响应！')
+      // messageApi.info('✅ 已发送获取文档内容请求，请观察控制台和文档响应！')
     } catch (error) {
       console.error('❌ 发送获取文档内容请求失败:', error)
-      messageApi.error('发送获取文档内容请求失败')
+      // messageApi.error('发送获取文档内容请求失败')
     }
   }
 
@@ -832,10 +832,10 @@ const EditorPanel: React.FC = () => {
       //   iframeRef.current?.contentWindow?.postMessage(scriptUrlMessage, collaboraUrl)
       // }, 2000)
       
-      messageApi.info('已发送多种Python脚本调用测试，请检查文档和日志')
+      // messageApi.info('已发送多种Python脚本调用测试，请检查文档和日志')
     } catch (error) {
       console.error('❌ 发送测试失败:', error)
-            messageApi.error('发送测试失败')
+            // messageApi.error('发送测试失败')
     }
   }
 
@@ -891,10 +891,10 @@ const EditorPanel: React.FC = () => {
         iframeRef.current?.contentWindow?.postMessage(clearLogMessage, collaboraUrl)
       }, 1000)
       
-      messageApi.info('已发送宏调用测试，观察是否有响应')
+      // messageApi.info('已发送宏调用测试，观察是否有响应')
     } catch (error) {
       console.error('❌ 发送宏调用测试失败:', error)
-      messageApi.error('发送宏调用测试失败')
+      // messageApi.error('发送宏调用测试失败')
     }
   }
 
@@ -929,10 +929,10 @@ const EditorPanel: React.FC = () => {
       iframeRef.current.contentWindow?.postMessage(JSON.stringify({'MessageId': 'Host_PostmessageReady'}), '*')
       iframeRef.current.contentWindow?.postMessage(JSON.stringify(searchHelloFormat), collaboraUrl)
       
-      messageApi.info('✅ 已发送官方正确格式的搜索hello请求！')
+      // messageApi.info('✅ 已发送官方正确格式的搜索hello请求！')
     } catch (error) {
       console.error('❌ 发送搜索hello请求失败:', error)
-      messageApi.error('发送搜索hello请求失败')
+      // messageApi.error('发送搜索hello请求失败')
     }
   }
 
@@ -964,10 +964,10 @@ const EditorPanel: React.FC = () => {
       iframeRef.current.contentWindow?.postMessage(JSON.stringify({'MessageId': 'Host_PostmessageReady'}), '*')
       iframeRef.current.contentWindow?.postMessage(JSON.stringify(selectChapterFormat), collaboraUrl)
       
-      messageApi.info('✅ 已发送章节选中请求！')
+      // messageApi.info('✅ 已发送章节选中请求！')
     } catch (error) {
       console.error('❌ 发送章节选中请求失败:', error)
-      messageApi.error('发送章节选中请求失败')
+      // messageApi.error('发送章节选中请求失败')
     }
   }
 
@@ -1015,10 +1015,10 @@ const EditorPanel: React.FC = () => {
       iframeRef.current.contentWindow?.postMessage(JSON.stringify({'MessageId': 'Host_PostmessageReady'}), '*')
       iframeRef.current.contentWindow?.postMessage(JSON.stringify(insertTableFormat), collaboraUrl)
       
-      messageApi.info('✅ 已发送表格插入请求！')
+      // messageApi.info('✅ 已发送表格插入请求！')
     } catch (error) {
       console.error('❌ 发送表格插入请求失败:', error)
-      messageApi.error('发送表格插入请求失败')
+      // messageApi.error('发送表格插入请求失败')
     }
   }
 
@@ -1056,10 +1056,10 @@ const EditorPanel: React.FC = () => {
       iframeRef.current.contentWindow?.postMessage(JSON.stringify({'MessageId': 'Host_PostmessageReady'}), '*')
       iframeRef.current.contentWindow?.postMessage(JSON.stringify(insertImageFormat), collaboraUrl)
       
-      messageApi.info('✅ 已发送图片插入请求！')
+      // messageApi.info('✅ 已发送图片插入请求！')
     } catch (error) {
       console.error('❌ 发送图片插入请求失败:', error)
-      messageApi.error('发送图片插入请求失败')
+      // messageApi.error('发送图片插入请求失败')
     }
   }
 
@@ -1072,7 +1072,7 @@ const EditorPanel: React.FC = () => {
     }
 
     console.log('🎯 开始综合测试新功能...')
-    messageApi.info('开始综合测试：标题→文字→表格→图片')
+    // messageApi.info('开始综合测试：标题→文字→表格→图片')
     
     // 第一步：插入标题
     setTimeout(() => {
@@ -1162,7 +1162,7 @@ const EditorPanel: React.FC = () => {
       
       iframeRef.current?.contentWindow?.postMessage(JSON.stringify(imageFormat), collaboraUrl)
       console.log('✅ 第4步：插入测试图片')
-      messageApi.success('🎉 综合测试完成！请检查文档内容')
+      // messageApi.success('🎉 综合测试完成！请检查文档内容')
     }, 6000)
     
     setReceivedMessages(prev => [...prev.slice(-9), '🎯 开始4步综合测试'])
