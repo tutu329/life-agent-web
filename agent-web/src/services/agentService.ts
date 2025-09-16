@@ -117,7 +117,8 @@ export class AgentService {
     const request: Agents_System_Request = {
       remote_tools: [],
       upper_agent_config: {
-        tool_names: ['Folder_Tool'],
+        tool_names: [],
+        //tool_names: ['Folder_Tool'],
         exp_json_path: 'my_2_levels_mas_exp.json',
         llm_config: {
           base_url: 'https://api.deepseek.com/v1',

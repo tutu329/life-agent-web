@@ -25,8 +25,10 @@ const EditorPanel: React.FC = () => {
   const wopiServerUrl = 'https://powerai.cc:5103'
   // WebSocket连接，用于接收后台Agent系统的Office操作指令
   const wsUrls = [
-    'wss://powerai.cc:5112',  // 首先尝试安全连接
-    'ws://powerai.cc:5112'    // 如果安全连接失败，尝试普通连接
+    'wss://powerai.cc:5113',  // 首先尝试安全连接
+    'ws://powerai.cc:5113'    // 如果安全连接失败，尝试普通连接
+    //'wss://powerai.cc:5112',  // 首先尝试安全连接
+    //'ws://powerai.cc:5112'    // 如果安全连接失败，尝试普通连接
   ]
   
   // 初始化WebSocket连接 - 用于接收后台Agent系统的Office操作指令
@@ -147,10 +149,10 @@ const EditorPanel: React.FC = () => {
       return
     }
     
-    if (agent_id && agent_id !== agentId) {
-      console.log(`⚠️ 忽略不匹配的Agent指令: ${agent_id} !== ${agentId}`)
-      return
-    }
+    // if (agent_id && agent_id !== agentId) {
+    //   console.log(`⚠️ 忽略不匹配的Agent指令: ${agent_id} !== ${agentId}`)
+    //   return
+    // }
     
     switch (operation) {
       case 'insert_text':
