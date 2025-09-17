@@ -6,7 +6,9 @@ export interface LLM_Config {
   temperature: number
   top_p: number
   max_new_tokens: number
+  reasoning_effort: string
   vpn_on: boolean
+  chatml: boolean
 }
 
 export interface Agent_Config {
@@ -121,14 +123,25 @@ export class AgentService {
         //tool_names: ['Folder_Tool'],
         exp_json_path: 'my_2_levels_mas_exp.json',
         llm_config: {
-          base_url: 'https://api.deepseek.com/v1',
-          api_key: 'sk-c1d34a4f21e3413487bb4b2806f6c4b8',
-          llm_model_id: 'deepseek-chat',
-          temperature: 0.65,
-          top_p: 0.9,
-          max_new_tokens: 1000,
-          vpn_on: false
+          base_url: 'http://powerai.cc:8001/v1',
+          api_key: 'empty',
+          llm_model_id: 'openai/gpt-oss-120b',
+          temperature: 1.0,
+          top_p: 1.0,
+          max_new_tokens: 4096,
+          reasoning_effort: 'low',
+          vpn_on: false,
+          chatml: true
         }
+        // llm_config: {
+        //   base_url: 'https://api.deepseek.com/v1',
+        //   api_key: 'sk-c1d34a4f21e3413487bb4b2806f6c4b8',
+        //   llm_model_id: 'deepseek-chat',
+        //   temperature: 0.65,
+        //   top_p: 0.9,
+        //   max_new_tokens: 1000,
+        //   vpn_on: false
+        // }
       },
       lower_agents_config: [
         {
@@ -139,14 +152,25 @@ export class AgentService {
           // as_tool_name: 'Folder_Agent_As_Tool',
           as_tool_description: '本工具用于在office文档中编制一个章节的内容',
           llm_config: {
-            base_url: 'https://api.deepseek.com/v1',
-            api_key: 'sk-c1d34a4f21e3413487bb4b2806f6c4b8',
-            llm_model_id: 'deepseek-chat',
-            temperature: 0.70,
-            top_p: 0.9,
-            max_new_tokens: 1000,
-            vpn_on: false
+            base_url: 'http://powerai.cc:8001/v1',
+            api_key: 'empty',
+            llm_model_id: 'openai/gpt-oss-120b',
+            temperature: 1.0,
+            top_p: 1.0,
+            max_new_tokens: 4096,
+            reasoning_effort: 'low',
+            vpn_on: false,
+            chatml: true
           }
+          // llm_config: {
+          //   base_url: 'https://api.deepseek.com/v1',
+          //   api_key: 'sk-c1d34a4f21e3413487bb4b2806f6c4b8',
+          //   llm_model_id: 'deepseek-chat',
+          //   temperature: 0.70,
+          //   top_p: 0.9,
+          //   max_new_tokens: 1000,
+          //   vpn_on: false
+          // }
         }
       ]
     }
