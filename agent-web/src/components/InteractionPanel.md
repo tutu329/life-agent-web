@@ -95,14 +95,14 @@ InteractionPanel 是 agent-web 项目中的核心交互组件，提供了两种�
 ```typescript
 // 上级Agent配置
 upper_agent_config: {
-  tool_names: ['Human_Console_Tool'],
+  allowed_local_tool_names: ['Human_Console_Tool'],
   llm_model_id: 'deepseek-chat',
   temperature: 0.65
 }
 
 // 下级Agent配置
 lower_agents_config: [{
-  tool_names: ['Human_Console_Tool', 'Folder_Tool'],
+  allowed_local_tool_names: ['Human_Console_Tool', 'Folder_Tool'],
   as_tool_name: 'Folder_Agent_As_Tool',
   llm_model_id: 'deepseek-chat',
   temperature: 0.70

@@ -12,7 +12,7 @@ export interface LLM_Config {
 }
 
 export interface Agent_Config {
-  tool_names: string[]
+  allowed_local_tool_names: string[]
   exp_json_path: string
   llm_config: LLM_Config
 }
@@ -119,7 +119,7 @@ export class AgentService {
     const request: Agents_System_Request = {
       remote_tools: [],
       upper_agent_config: {
-        tool_names: [],
+        allowed_local_tool_names: [],
         //tool_names: ['Folder_Tool'],
         exp_json_path: 'my_2_levels_mas_exp.json',
         // llm_config: {
