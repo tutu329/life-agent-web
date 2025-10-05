@@ -240,15 +240,17 @@ const EditorPanel: React.FC = () => {
     // 检查agent_id是否匹配当前前端的agentId
     console.log(`🔍 Agent ID比较: 消息中的=${agent_id}, 当前前端的=${agentId}`)
     
-    if (!agentId) {
-      console.log(`⚠️ 当前前端agentId为空，忽略Office指令`)
-      return
-    }
+    // ----------------------------测试阶段暂时关闭----------------------------
+    // if (!agentId) {
+    //   console.log(`⚠️ 当前前端agentId为空，忽略Office指令`)
+    //   return
+    // }
     
     // if (agent_id && agent_id !== agentId) {
     //   console.log(`⚠️ 忽略不匹配的Agent指令: ${agent_id} !== ${agentId}`)
     //   return
     // }
+    // ----------------------------测试阶段暂时关闭----------------------------
     
     switch (operation) {
       case 'insert_text':
@@ -314,14 +316,14 @@ const EditorPanel: React.FC = () => {
       case 'call_python_script':
         if (data && iframeRef.current) {
           // 如果文档尚未就绪，则延迟1秒后再次尝试发送此指令
-          if (!documentReady) {
-            console.log('⏳ 文档尚未就绪，1秒后将重试原始指令:', data.MessageId);
-            setTimeout(() => {
-              console.log('🔄 重试发送原始指令:', data.MessageId);
-              iframeRef.current?.contentWindow?.postMessage(data, collaboraUrl);
-            }, 1000);
-            return;
-          }
+          // if (!documentReady) {
+          //   console.log('⏳ 文档尚未就绪，1秒后将重试原始指令:', data.MessageId);
+          //   setTimeout(() => {
+          //     console.log('🔄 重试发送原始指令:', data.MessageId);
+          //     iframeRef.current?.contentWindow?.postMessage(data, collaboraUrl);
+          //   }, 1000);
+          //   return;
+          // }
 
           // const messageId = data.MessageId || '未知指令';
           // setReceivedMessages(prev => [...prev.slice(-9), `原始指令: ${messageId}`]);
