@@ -12,10 +12,12 @@ const EditorPanel: React.FC = () => {
   const [iframeKey, setIframeKey] = useState(0)
   const [documentReady, setDocumentReady] = useState(false)
   const [wsConnected, setWsConnected] = useState(false)
+  const [ws5113Connected, setWs5113Connected] = useState(false)
   const [receivedMessages, setReceivedMessages] = useState<string[]>([])
   
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const wsRef = useRef<WebSocket | null>(null)
+  const ws5113Ref = useRef<WebSocket | null>(null)
   
   // 生成唯一ID和key
   const uniqueId = `editor_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
@@ -131,6 +133,100 @@ const EditorPanel: React.FC = () => {
     } catch (error) {
       console.error('❌ Office WebSocket初始化失败:', error)
       messageApi.error('无法连接到Office服务')
+    }
+  }
+
+  // 初始化5113端口WebSocket连接 - 不需要agentId，直接连接
+  const init5113WebSocket = (urlIndex = 0) => {
+    const wsUrls5113 = [
+      'wss://powerai.cc:5113',  // 首先尝试安全连接
+      'ws://powerai.cc:5113'    // 如果安全连接失败，尝试普通连接
+    ]
+    
+    if (urlIndex >= wsUrls5113.length) {
+      console.error('❌ 所有5113端口WebSocket连接尝试都失败了')
+      messageApi.error('无法连接到5113端口Office服务器')
+      return
+    }
+    
+    const wsUrl = wsUrls5113[urlIndex]
+    console.log(`🚀 尝试连接5113端口Office WebSocket服务器 (${urlIndex + 1}/${wsUrls5113.length}): ${wsUrl}`)
+    
+    try {
+      const ws = new WebSocket(wsUrl)
+      ws5113Ref.current = ws
+      
+      // 添加连接超时检测
+      const connectionTimeout = setTimeout(() => {
+        if (ws.readyState === WebSocket.CONNECTING) {
+          console.error('⏰ 5113端口WebSocket连接超时')
+          ws.close()
+        }
+      }, 10000) // 10秒超时
+      
+      ws.onopen = () => {
+        clearTimeout(connectionTimeout)
+        console.log('🔗 5113端口Office WebSocket连接已建立（无需Agent ID）')
+        setWs5113Connected(true)
+        messageApi.success('5113端口Office服务连接成功')
+      }
+      
+      ws.onmessage = (event) => {
+        console.log('📨 收到5113端口WebSocket消息:', event.data)
+        try {
+          const message = JSON.parse(event.data)
+          
+          if (message.type === 'office_operation') {
+            console.log('🔧 收到5113端口Office操作指令:', message)
+            handleOfficeCommand(message)
+          } else {
+            console.log('📩 收到5113端口其他类型消息:', message)
+          }
+        } catch (error) {
+          console.error('❌ 解析5113端口WebSocket消息失败:', error)
+          // 兼容处理：如果不是JSON格式，当作文本指令处理
+          const textMessage = event.data
+          setReceivedMessages(prev => [...prev.slice(-9), `5113: ${textMessage}`]) // 保留最近10条消息
+          
+          // 延迟1秒后插入文本，确保iframe完全加载
+          setTimeout(() => {
+            insertTextToDocument(textMessage)
+          }, 1000)
+        }
+      }
+      
+      ws.onclose = (event) => {
+        clearTimeout(connectionTimeout)
+        console.log('🔌 5113端口Office WebSocket连接已关闭:', event.code, event.reason)
+        setWs5113Connected(false)
+        messageApi.warning('5113端口Office服务连接断开')
+        
+        // 5秒后尝试重连
+        setTimeout(() => {
+          if (!ws5113Ref.current || ws5113Ref.current.readyState === WebSocket.CLOSED) {
+            console.log('🔄 尝试重新连接5113端口Office WebSocket...')
+            init5113WebSocket()
+          }
+        }, 5000)
+      }
+      
+      ws.onerror = (error) => {
+        clearTimeout(connectionTimeout)
+        console.error(`❌ 5113端口Office WebSocket错误 (${wsUrl}):`, error)
+        // 如果当前连接失败，尝试下一个URL
+        if (urlIndex + 1 < wsUrls5113.length) {
+          console.log('🔄 尝试下一个5113端口WebSocket地址...')
+          setTimeout(() => {
+            init5113WebSocket(urlIndex + 1)
+          }, 1000)
+        } else {
+          messageApi.error('5113端口Office服务连接错误')
+        }
+      }
+      
+    } catch (error) {
+      console.error('❌ 5113端口Office WebSocket初始化失败:', error)
+      messageApi.error('无法连接到5113端口Office服务')
     }
   }
   
@@ -445,6 +541,10 @@ const EditorPanel: React.FC = () => {
     console.log('📝 EditorPanel已加载')
     console.log('🔍 当前Agent状态:', { agentId, agentInitialized })
     
+    // 立即启动5113端口WebSocket连接（不需要等待agentId）
+    console.log('🚀 启动5113端口WebSocket连接...')
+    init5113WebSocket()
+    
     // 监听来自Collabora CODE的消息
     const handleMessage = (event: MessageEvent) => {
       try {
@@ -518,6 +618,9 @@ const EditorPanel: React.FC = () => {
       window.removeEventListener('message', handleMessage)
       if (wsRef.current) {
         wsRef.current.close()
+      }
+      if (ws5113Ref.current) {
+        ws5113Ref.current.close()
       }
     }
   }, [])
