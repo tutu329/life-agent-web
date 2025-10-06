@@ -2298,6 +2298,34 @@ def insert_image(image_path, image_title="", width=None, height=None,
             
         return error_msg
 
+
+def insert_math(formula="E = m c^2", as_inline=True, base_font_height=12):
+    doc = XSCRIPTCONTEXT.getDocument()
+    view = doc.getCurrentController().getViewCursor()
+
+    obj = doc.createInstance("com.sun.star.text.TextEmbeddedObject")
+    obj.CLSID = "078B7ABA-54FC-457F-8551-6147E776A997"  # StarMath OLE
+
+    # ☆ 关键修复：枚举用 uno.Enum，而不是 getConstantByName
+    obj.AnchorType = uno.Enum(
+        "com.sun.star.text.TextContentAnchorType",
+        "AS_CHARACTER" if as_inline else "AT_PARAGRAPH"
+    )
+
+    doc.Text.insertTextContent(view, obj, False)
+
+    # 访问公式模型并设置
+    model = obj.Model
+    model.Formula = formula
+    try:
+        model.BaseFontHeight = int(base_font_height)
+    except Exception:
+        pass
+
+    obj.getExtendedControlOverEmbeddedObject().update()
+
+    return f"SUCCESS: 成功插入公式 ({formula})"
+
 # LibreOffice/Collabora CODE 要求导出函数
 # 这是必须的，否则CallPythonScript无法找到函数
-g_exportedScripts = (hello, get_document_content, test_uno_connection, simple_test, debug_params, search_and_format_text, search_and_replace_with_format, select_chapter, insert_text, set_paragraph, insert_title, insert_table, insert_image,) 
+g_exportedScripts = (hello, get_document_content, test_uno_connection, simple_test, debug_params, search_and_format_text, search_and_replace_with_format, select_chapter, insert_text, set_paragraph, insert_title, insert_table, insert_image, insert_math, ) 
