@@ -169,6 +169,14 @@ const EditorPanel: React.FC = () => {
         console.log('🔗 5113端口Office WebSocket连接已建立（无需Agent ID）')
         setWs5113Connected(true)
         messageApi.success('5113端口Office服务连接成功')
+
+        const registerMessage = {
+          type: 'register',
+          client_id: '5113_ws_client'
+        }
+        
+        console.log('📝 发送ws_client注册消息:', registerMessage)
+        ws.send(JSON.stringify(registerMessage))
       }
       
       ws.onmessage = (event) => {
